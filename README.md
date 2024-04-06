@@ -20,25 +20,19 @@ The platform utilizes a relational database structure with tables for 'appearanc
 
 Dataset source: https://www.kaggle.com/datasets/technika148/football-database
 
-**Appearances.csv:**
+- **Appearances.csv:**
 Tracks player appearances in matches, including goals, assists, shots, expected goals, and more. This table serves as a comprehensive source of player performance metrics.
-
-**Games.csv:**
+- **Games.csv:**
 Contains details about each game, including the teams involved, the final score, probabilities for match outcomes, and half-time scores. This dataset enables analysis of match dynamics and outcomes.
-
-**Leagues.csv:**
+- **Leagues.csv:**
 Lists the top five European football leagues covered in this dataset.
-
-**Players.csv:**
+- **Players.csv:**
 Provides basic information on players, including their names and IDs, essential for linking player-related data across tables.
-
-**Shots.csv:**
+- **Shots.csv:**
 Details each shot taken in the covered matches, including the shooter, assister, minute, situation, and the shot's outcome. This dataset allows for deep dives into shooting efficiency and decision-making on the field.
-
-**Teams.csv:**
+- **Teams.csv:**
 All teams who played in one of the Top5 leagues across seasons from 2014-2020.
-
-**Teamstats.csv:**
+- **Teamstats.csv:**
 Detailed statistics for each team's games in one of Europe's Top 5 soccer leagues, covering metrics like goals, expected goals, shots, and defensive actions, across a specified season and date range.
 
 ## Directory Descriptions:
