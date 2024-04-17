@@ -230,16 +230,14 @@ const top_leagues = async function(req, res) {
     `WITH game_stats AS (
       SELECT leagueID,
              AVG(homeGoals + awayGoals) AS total_goals,
-             AVG(homeGoals - awayGoals) AS goal_difference,
-             AVG(drawProbability) AS drawProbability
+             AVG(homeGoals - awayGoals) AS goal_difference
       FROM games
       WHERE season BETWEEN ${startSeason} AND ${endSeason}
       GROUP BY leagueID
     )
     SELECT l.name AS league_name,
           AVG(gs.total_goals) AS avg_total_goals,
-          AVG(gs.goal_difference) AS avg_goal_difference,
-          AVG(gs.drawProbability) AS avg_draw_probability
+          AVG(gs.goal_difference) AS avg_goal_difference
     FROM game_stats gs
         JOIN leagues l ON gs.leagueID = l.leagueID
     GROUP BY l.name
@@ -253,7 +251,8 @@ const top_leagues = async function(req, res) {
       } else {
         res.json(data);
       }
-    });
+    }
+  );
 }
 
 const top_offensive_leagues = async function(req, res) {
@@ -284,7 +283,8 @@ const top_offensive_leagues = async function(req, res) {
       } else {
         res.json(data);
       }
-    });
+    }
+  );
 }
 
 const top_defensive_leagues = async function(req, res) {
@@ -312,14 +312,71 @@ const top_defensive_leagues = async function(req, res) {
       } else {
         res.json(data);
       }
-    });
+    }
+  );
 }
 
-/**
- * app.get('/top_leagues', routes.top_leagues);
- * app.get('/top_offensive_leagues', routes.top_offensive_leagues);
- * app.get('/top_defensive_leagues', routes.top_defensive_leagues);
- */
+const team_roster = async function(req, res) {
+
+  const startSeason = req.query.season ?? 2014;
+  const endSeason = req.query.season ?? 2020;
+
+  connection.query(
+    `WITH gamesInfo AS(
+      SELECT P.playerID AS playerID,
+             P.name AS name,
+             G.season AS season,
+             G.homeTeamID AS homeTeamID,
+             G.awayTeamID AS awayTeamID,
+             G.leagueID AS leagueID
+      FROM players P
+          JOIN appearances A ON P.playerID = A.playerID
+          JOIN games G ON A.gameID = G.gameID
+    ), teamsPlayed AS(
+        SELECT playerID,
+              name,
+              season,
+              teamID,
+              leagueID,
+              COUNT(*) AS TOTAL_APPEARANCE
+        FROM (
+            SELECT playerID, name, season, homeTeamID AS teamID, leagueID
+            FROM gamesInfo
+    
+            UNION ALL
+    
+            SELECT playerID, name, season, awayTeamID AS teamID, leagueID
+            FROM gamesInfo) TA
+        GROUP BY name, season, teamID
+        ORDER BY TOTAL_APPEARANCE DESC
+    ), teamsBelong AS (
+        SELECT TP.playerID,
+              TP.name,
+              TP.season,
+              TP.teamID,
+              T.name AS team,
+              L.name AS league,
+              MAX(TOTAL_APPEARANCE) AS TOTAL_APPEARANCE
+        FROM teamsPlayed TP
+            JOIN teams T ON TP.teamID = T.teamID
+            JOIN leagues L ON TP.leagueID = L.leagueID
+        GROUP BY TP.name, season
+    )
+    SELECT season, team, league, GROUP_CONCAT(name separator ', ') AS roster
+    FROM teamsBelong
+    WHERE season BETWEEN ${startSeason} AND ${endSeason}
+    GROUP BY league, team, season
+    ORDER BY season, league, team
+    `, (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]);
+      } else {
+        res.json(data);
+      }
+    }
+  );
+}
 
 module.exports = {
   author,
@@ -331,4 +388,8 @@ module.exports = {
   top_songs,
   top_albums,
   search_songs,
+  top_leagues,
+  top_offensive_leagues,
+  top_defensive_leagues,
+  team_roster
 }
