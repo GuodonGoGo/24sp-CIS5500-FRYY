@@ -241,8 +241,7 @@ const top_leagues = async function(req, res) {
     FROM game_stats gs
         JOIN leagues l ON gs.leagueID = l.leagueID
     GROUP BY l.name
-    ORDER BY avg_draw_probability DESC,
-            avg_total_goals DESC,
+    ORDER BY avg_total_goals DESC,
             avg_goal_difference
     `, (err, data) => {
       if (err) {
@@ -268,10 +267,10 @@ const top_offensive_leagues = async function(req, res) {
             AVG(ts.shotsOnTarget) AS avg_shots_on_target,
             AVG(ts.deep) AS avg_deep_shots,
             AVG(ts.corners) AS avg_corners
-    FROM teamstats ts.season BETWEEN ${startSeason} AND ${endSeason}
+    FROM teamstats ts
         JOIN games g ON ts.gameID = g.gameID
         JOIN leagues l ON g.leagueID = l.leagueID
-    WHERE ts.
+    WHERE ts.season BETWEEN ${startSeason} AND ${endSeason}
     GROUP BY l.name
     ORDER BY avg_goals DESC,
             avg_shots_on_target DESC,
