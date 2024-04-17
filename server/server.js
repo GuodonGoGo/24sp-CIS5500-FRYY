@@ -16,6 +16,19 @@ app.get('/top_scorers', routes.top_scorers);
 app.get('/most_influential_players', routes.most_influential_players);
 app.get('/clutch_players', routes.clutch_players);
 app.get('/player_performance_per_season', routes.player_performance_per_season);
+app.get('/random', routes.random);
+app.get('/song/:song_id', routes.song);
+app.get('/album/:album_id', routes.album);
+app.get('/albums', routes.albums);
+app.get('/album_songs/:album_id', routes.album_songs);
+app.get('/top_songs', routes.top_songs);
+app.get('/top_albums', routes.top_albums);
+app.get('/search_songs', routes.search_songs);
+app.get('/top_leagues', routes.top_leagues);
+app.get('/top_offensive_leagues', routes.top_offensive_leagues);
+app.get('/top_defensive_leagues', routes.top_defensive_leagues);
+app.get('/team_roster', routes.team_roster);
+
 app.listen(config.server_port, () => {
   console.log(`Server running at http://${config.server_host}:${config.server_port}/`)
 });
