@@ -16,11 +16,14 @@ connection.connect((err) => err && console.log(err));
  * WARM UP ROUTES *
  ******************/
 
-// Route 1: GET /author/:type
+
+
+
+// Route 0: GET /author/:type
 const author = async function(req, res) {
   // TODO (TASK 1): replace the values of name and pennkey with your own
-  const name = 'Felix Yuzhou Sun';
-  const pennkey = 'syz1998';
+  const name = '5500';
+  const pennkey = 'Scorer Analysis Platform';
 
   // checks the value of type in the request parameters
   // note that parameters are required and are specified in server.js in the endpoint by a colon (e.g. /author/:type)
@@ -32,6 +35,276 @@ const author = async function(req, res) {
     res.send(`Created By ${pennkey}`);
   } else {
     res.status(400).json({});
+  }
+}
+// Route 0: GET /test
+const test = async function(req, res) {
+  connection.query(`
+    SELECT COUNT(*) AS shot_count
+    FROM shots
+  `, (err, data) => { 
+    if (err) {
+      console.log(err);
+      res.json([]);
+    } else {
+      // Assuming the query always returns one row with one column
+      const shotCount = data[0].shot_count;
+      res.json({ shotCount });
+    }
+  });
+}
+
+// Route 1: GET /top_scorers
+const top_scorers = async function(req, res) {
+  connection.query(`
+    WITH goal_scores AS (
+        SELECT
+            p.playerID,
+            l.leagueID,
+            l.name AS league_name,
+            p.name AS player_name,
+            SUM(a.goals + a.ownGoals) AS total_goals
+        FROM appearances a
+        JOIN players p ON a.playerID = p.playerID
+        JOIN games g ON a.gameID = g.gameID
+        JOIN leagues l ON g.leagueID = l.leagueID
+        GROUP BY p.playerID, l.leagueID
+    ), ranked_scores AS (
+        SELECT
+            leagueID,
+            league_name,
+            player_name,
+            total_goals,
+            RANK() OVER (PARTITION BY leagueID ORDER BY total_goals DESC) AS player_rank
+        FROM goal_scores
+    )
+    SELECT DISTINCT player_name
+    FROM ranked_scores
+    WHERE player_rank = 1;
+  `, (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]); // In case of an error, return an empty array
+      } else {
+        // Extracting just the player names from the data array
+        const playerNames = data.map(item => item.player_name);
+        res.json(playerNames); // Return the array of top scorers' names
+      }
+    });
+}
+
+// Route 2: GET / most_influential_players
+const most_influential_players = async function(req, res) {
+  connection.query(`
+      SELECT
+      p.playerID,
+      p.name AS player_name,
+      COUNT(DISTINCT a.gameID) AS appearances,
+      SUM(a.goals) AS total_goals,
+      SUM(a.assists) AS total_assists,
+      SUM(CASE WHEN sh.shotResult = 'Goal' THEN 1 ELSE 0 END) AS goals_from_shots
+    FROM
+      players p
+    LEFT OUTER JOIN
+      appearances a ON p.playerID = a.playerID
+    LEFT OUTER JOIN
+      games g ON a.gameID = g.gameID
+    LEFT OUTER JOIN
+      shots sh ON a.gameID = sh.gameID AND sh.shooterID = p.playerID AND sh.shotResult = 'Goal'
+    LEFT OUTER JOIN
+      teams t ON (t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID) AND (a.playerID IN (SELECT playerID FROM players WHERE teamID = t.teamID))
+    GROUP BY
+      p.playerID, p.name
+    ORDER BY
+      total_goals DESC, total_assists DESC
+    LIMIT 5;
+
+  `, (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]); // In case of an error, return an empty array
+      } else {
+        // Extracting just the player names from the data array
+        const playerNames = data.map(item => item.player_name);
+        res.json(playerNames); // Return the array of top scorers' names
+      }
+    });
+}
+
+// Route 4: GET /clutch_players
+const clutch_players = async function(req, res) {
+  connection.query(`
+    SELECT p.name, COUNT(*) AS late_goals
+    FROM shots s
+    JOIN players p ON s.shooterID = p.playerID
+    WHERE minute BETWEEN 75 AND 90 AND shotResult = 'Goal'
+    GROUP BY p.name
+    ORDER BY late_goals DESC
+    LIMIT 10;
+  `, (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]); // In case of an error, return an empty array
+      } else {
+        console.log(data); // Log the data array
+        // Extracting just the player names from the data array
+        const playerNames = data.map(item => item.name);
+        res.json(playerNames); // Return the array of top scorers' names
+      }
+    });
+}
+
+
+// Route 5: GET /player_performance_per_season
+const player_performance_per_season = async function(req, res) {
+  const name = req.query.name; 
+  // if season is not provided, return all seasons
+  const season = req.query.season;
+
+  if (!season) {
+    connection.query(`
+    WITH gamesInfo AS(
+      SELECT P.playerID AS playerID, P.name AS name, G.season AS season, G.homeTeamID AS homeTeamID, G.awayTeamID AS awayTeamID, G.leagueID AS leagueID
+      FROM players P
+          JOIN appearances A ON P.playerID = A.playerID
+          JOIN games G ON A.gameID = G.gameID
+   ), teamsPlayed AS(
+      SELECT playerID, name, season, teamID, leagueID, COUNT(*) AS TOTAL_APPEARANCE
+      FROM (SELECT playerID, name, season, homeTeamID AS teamID, leagueID
+            FROM gamesInfo
+   
+            UNION ALL
+   
+            SELECT playerID, name, season, awayTeamID AS teamID, leagueID
+            FROM gamesInfo) TA
+      GROUP BY name, season, teamID
+      ORDER BY TOTAL_APPEARANCE DESC
+   ), teamsBelong AS (
+      SELECT TP.playerID, TP.name, season, TP.teamID, T.name AS team, L.name AS league, MAX(TOTAL_APPEARANCE) AS TOTAL_APPEARANCE
+      FROM teamsPlayed TP
+          JOIN teams T ON TP.teamID = T.teamID
+          JOIN leagues L ON TP.leagueID = L.leagueID
+      GROUP BY TP.name, season
+   ), seasonAvg AS (
+      SELECT P.name AS playerName,
+             G.season AS season,
+             SUM(A.goals) AS num_goals,
+             SUM(A.shots) AS num_shots,
+             SUM(A.assists) AS num_assists,
+             ROUND(AVG(A.goals), 2) AS avg_goal,
+             ROUND(AVG(A.ownGoals), 2) AS avg_own_goal,
+             ROUND(AVG(A.shots), 2) AS avg_shots,
+             ROUND(AVG(A.assists), 2) AS avg_assists,
+             ROUND(AVG(A.keyPasses), 2) AS avg_keyPasses,
+             ROUND(AVG(A.yellowCard), 2) AS avg_yellowCard,
+             ROUND(AVG(A.redCard), 2) AS avg_redCard,
+             ROUND(AVG(A.time), 2) AS avg_minutes
+      FROM appearances A
+          JOIN games G ON A.gameID = G.gameID
+          JOIN players P ON A.playerID = P.playerID
+      WHERE P.name = ?
+      GROUP BY P.name, G.season
+   )
+   SELECT TB.name AS name,
+         SA.season AS season,
+         TB.team AS team,
+         TB.league as league,
+         TB.TOTAL_APPEARANCE AS games_played,
+         SA.num_goals AS num_goals,
+         SA.num_shots AS num_shots,
+         ROUND(AVG(num_goals / num_shots), 2) AS goals_per_shot,
+         SA.avg_goal AS avg_goal_per_game,
+         SA.avg_own_goal AS avg_own_goal_per_game,
+         SA.avg_shots AS avg_shots_per_game,
+         SA.avg_assists AS avg_assists_per_game,
+         SA.avg_keyPasses AS avg_keyPasses_per_game,
+         SA.avg_yellowCard AS avg_yellowCard,
+         SA.avg_redCard AS avg_redCard,
+         SA.avg_minutes AS avg_minutes_per_game
+   FROM seasonAvg SA
+      JOIN teamsBelong TB ON SA.playerName = TB.name AND SA.season = TB.season
+   GROUP BY name, season, team
+   ORDER BY name, season, team;
+      `, [name], (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]);
+      } else {
+        res.json(data);
+      }
+    });
+  } else {
+    connection.query(`    
+      WITH gamesInfo AS(
+        SELECT P.playerID AS playerID, P.name AS name, G.season AS season, G.homeTeamID AS homeTeamID, G.awayTeamID AS awayTeamID, G.leagueID AS leagueID
+        FROM players P
+            JOIN appearances A ON P.playerID = A.playerID
+            JOIN games G ON A.gameID = G.gameID
+    ), teamsPlayed AS(
+        SELECT playerID, name, season, teamID, leagueID, COUNT(*) AS TOTAL_APPEARANCE
+        FROM (SELECT playerID, name, season, homeTeamID AS teamID, leagueID
+              FROM gamesInfo
+    
+              UNION ALL
+    
+              SELECT playerID, name, season, awayTeamID AS teamID, leagueID
+              FROM gamesInfo) TA
+        GROUP BY name, season, teamID
+        ORDER BY TOTAL_APPEARANCE DESC
+    ), teamsBelong AS (
+        SELECT TP.playerID, TP.name, season, TP.teamID, T.name AS team, L.name AS league, MAX(TOTAL_APPEARANCE) AS TOTAL_APPEARANCE
+        FROM teamsPlayed TP
+            JOIN teams T ON TP.teamID = T.teamID
+            JOIN leagues L ON TP.leagueID = L.leagueID
+        GROUP BY TP.name, season
+    ), seasonAvg AS (
+        SELECT P.name AS playerName,
+              G.season AS season,
+              SUM(A.goals) AS num_goals,
+              SUM(A.shots) AS num_shots,
+              SUM(A.assists) AS num_assists,
+              ROUND(AVG(A.goals), 2) AS avg_goal,
+              ROUND(AVG(A.ownGoals), 2) AS avg_own_goal,
+              ROUND(AVG(A.shots), 2) AS avg_shots,
+              ROUND(AVG(A.assists), 2) AS avg_assists,
+              ROUND(AVG(A.keyPasses), 2) AS avg_keyPasses,
+              ROUND(AVG(A.yellowCard), 2) AS avg_yellowCard,
+              ROUND(AVG(A.redCard), 2) AS avg_redCard,
+              ROUND(AVG(A.time), 2) AS avg_minutes
+        FROM appearances A
+            JOIN games G ON A.gameID = G.gameID
+            JOIN players P ON A.playerID = P.playerID
+        WHERE P.name = ? AND G.season = ?
+        GROUP BY P.name, G.season
+    )
+    SELECT TB.name AS name,
+          SA.season AS season,
+          TB.team AS team,
+          TB.league as league,
+          TB.TOTAL_APPEARANCE AS games_played,
+          SA.num_goals AS num_goals,
+          SA.num_shots AS num_shots,
+          ROUND(AVG(num_goals / num_shots), 2) AS goals_per_shot,
+          SA.avg_goal AS avg_goal_per_game,
+          SA.avg_own_goal AS avg_own_goal_per_game,
+          SA.avg_shots AS avg_shots_per_game,
+          SA.avg_assists AS avg_assists_per_game,
+          SA.avg_keyPasses AS avg_keyPasses_per_game,
+          SA.avg_yellowCard AS avg_yellowCard,
+          SA.avg_redCard AS avg_redCard,
+          SA.avg_minutes AS avg_minutes_per_game
+    FROM seasonAvg SA
+        JOIN teamsBelong TB ON SA.playerName = TB.name AND SA.season = TB.season
+    GROUP BY name, season, team
+    ORDER BY name, season, team;
+      `, [name, season], (err, data) => { 
+      if (err) {
+        console.log(err);
+        res.json([]);
+      } else {
+        res.json(data);
+      }
+    });
   }
 }
 
@@ -70,6 +343,8 @@ const random = async function(req, res) {
     }
   });
 }
+
+
 
 /********************************
  * BASIC SONG/ALBUM INFO ROUTES *
@@ -133,6 +408,8 @@ const albums = async function(req, res) {
       }
     });
 }
+
+
 
 // Route 6: GET /album_songs/:album_id
 const album_songs = async function(req, res) {
@@ -222,13 +499,14 @@ const search_songs = async function(req, res) {
 }
 
 module.exports = {
+  test,
   author,
+  top_scorers,
+  most_influential_players,
+  clutch_players,
+  player_performance_per_season,
   random,
   song,
   album,
   albums,
-  album_songs,
-  top_songs,
-  top_albums,
-  search_songs,
 }
