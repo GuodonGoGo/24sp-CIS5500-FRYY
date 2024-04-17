@@ -221,6 +221,106 @@ const search_songs = async function(req, res) {
   res.json([]); // replace this with your implementation
 }
 
+const top_leagues = async function(req, res) {
+
+  const startSeason = req.query.season ?? 2014;
+  const endSeason = req.query.season ?? 2020;
+
+  connection.query(
+    `WITH game_stats AS (
+      SELECT leagueID,
+             AVG(homeGoals + awayGoals) AS total_goals,
+             AVG(homeGoals - awayGoals) AS goal_difference,
+             AVG(drawProbability) AS drawProbability
+      FROM games
+      WHERE season BETWEEN ${startSeason} AND ${endSeason}
+      GROUP BY leagueID
+    )
+    SELECT l.name AS league_name,
+          AVG(gs.total_goals) AS avg_total_goals,
+          AVG(gs.goal_difference) AS avg_goal_difference,
+          AVG(gs.drawProbability) AS avg_draw_probability
+    FROM game_stats gs
+        JOIN leagues l ON gs.leagueID = l.leagueID
+    GROUP BY l.name
+    ORDER BY avg_draw_probability DESC,
+            avg_total_goals DESC,
+            avg_goal_difference
+    `, (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]);
+      } else {
+        res.json(data);
+      }
+    });
+}
+
+const top_offensive_leagues = async function(req, res) {
+
+  const startSeason = req.query.season ?? 2014;
+  const endSeason = req.query.season ?? 2020;
+
+  connection.query(
+    `SELECT l.name AS league_name,
+            AVG(ts.goals) AS avg_goals,
+            AVG(ts.xGoals) AS avg_expected_goals,
+            AVG(ts.shots) AS avg_shots,
+            AVG(ts.shotsOnTarget) AS avg_shots_on_target,
+            AVG(ts.deep) AS avg_deep_shots,
+            AVG(ts.corners) AS avg_corners
+    FROM teamstats ts.season BETWEEN ${startSeason} AND ${endSeason}
+        JOIN games g ON ts.gameID = g.gameID
+        JOIN leagues l ON g.leagueID = l.leagueID
+    WHERE ts.
+    GROUP BY l.name
+    ORDER BY avg_goals DESC,
+            avg_shots_on_target DESC,
+            avg_corners DESC
+    `, (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]);
+      } else {
+        res.json(data);
+      }
+    });
+}
+
+const top_defensive_leagues = async function(req, res) {
+
+  const startSeason = req.query.season ?? 2014;
+  const endSeason = req.query.season ?? 2020;
+
+  connection.query(
+    `SELECT l.name AS league_name,
+            AVG(g.awayGoals) AS avg_goals_conceded,
+            AVG(ts.shots) AS avg_shots_faced,
+            AVG(ts.ppda) AS avg_ppda
+    FROM teamstats ts
+        JOIN games g ON ts.gameID = g.gameID
+        JOIN leagues l ON g.leagueID = l.leagueID
+    WHERE ts.season BETWEEN ${startSeason} AND ${endSeason}
+    GROUP BY l.name
+    ORDER BY avg_ppda,
+            avg_goals_conceded,
+            avg_shots_faced DESC
+    `, (err, data) => {
+      if (err) {
+        console.log(err);
+        res.json([]);
+      } else {
+        res.json(data);
+      }
+    });
+}
+
+/**
+ * app.get('/top_leagues', routes.top_leagues);
+ * app.get('/top_offensive_leagues', routes.top_offensive_leagues);
+ * app.get('/top_defensive_leagues', routes.top_defensive_leagues);
+ */
+
 module.exports = {
   author,
   random,
