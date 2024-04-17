@@ -28,6 +28,10 @@ app.get('/top_leagues', routes.top_leagues);
 app.get('/top_offensive_leagues', routes.top_offensive_leagues);
 app.get('/top_defensive_leagues', routes.top_defensive_leagues);
 app.get('/team_roster', routes.team_roster);
+app.get('/total_goals', routes.total_goals);
+app.get('/wld_ratios', routes.wld_ratios);
+app.get('/season_performance', routes.season_performance);
+app.get('/efficiency', routes.efficiency);
 
 app.listen(config.server_port, () => {
   console.log(`Server running at http://${config.server_host}:${config.server_port}/`)
