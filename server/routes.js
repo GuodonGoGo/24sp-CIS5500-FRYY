@@ -654,6 +654,103 @@ const team_roster = async function(req, res) {
   );
 }
 
+// Route 3: GET /total_goals
+// Total goals per season
+const total_goals = async function(req, res) {
+  const explicit = req.query.explicit === 'true' ? 1 : 0;
+
+  connection.query(`
+    SELECT t.teamID, t.name AS team_name, g.season,
+    SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.homeGoals ELSE g.awayGoals END) AS goals_scored,
+    SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.awayGoals ELSE g.homeGoals END) AS goals_conceded
+    FROM  teams t
+    JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    GROUP BY t.teamID, t.name, g.season
+  `, (err, data) => {
+    if (err || data.length === 0) {
+      console.log(err);
+      res.json({});
+    } else {
+      res.json(data);
+    }
+  });
+}
+
+// Route 4: GET /wld_ratios
+// Win/Loss/Draw Ratio Per Season
+const wld_ratios = async function(req, res) {
+  const explicit = req.query.explicit === 'true' ? 1 : 0;
+
+  connection.query(`
+    SELECT t.teamID, t.name AS team_name, g.season, COUNT(*) AS total_games,
+    COUNT(CASE WHEN (g.homeTeamID = t.teamID AND g.homeGoals > g.awayGoals) OR (g.awayTeamID = t.teamID AND g.awayGoals > g.homeGoals) THEN 1 END) AS wins,
+    COUNT(CASE WHEN (g.homeTeamID = t.teamID AND g.homeGoals < g.awayGoals) OR (g.awayTeamID = t.teamID AND g.awayGoals < g.homeGoals) THEN 1 END) AS losses,
+    COUNT(CASE WHEN g.homeGoals = g.awayGoals THEN 1 END) AS draws
+    FROM teams t
+    JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    GROUP BY t.teamID, t.name, g.season
+  `, (err, data) => {
+    if (err || data.length === 0) {
+      console.log(err);
+      res.json({});
+    } else {
+      res.json(data);
+    }
+  });
+}
+
+// Route 5: GET /season_performance
+// Seasonal Performance
+const season_performance = async function(req, res) {
+  const explicit = req.query.explicit === 'true' ? 1 : 0;
+
+  connection.query(`
+    SELECT t.teamID, t.name AS team_name, g.season,
+    SUM(
+        CASE
+            WHEN (g.homeTeamID = t.teamID AND g.homeGoals > g.awayGoals) OR (g.awayTeamID = t.teamID AND g.awayGoals > g.homeGoals) THEN 3
+            WHEN g.homeGoals = g.awayGoals THEN 1
+            ELSE 0
+        END
+    ) AS total_points
+    FROM teams t
+    JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    GROUP BY t.teamID, t.name, g.season
+    ORDER BY total_points DESC
+  `, (err, data) => {
+    if (err || data.length === 0) {
+      console.log(err);
+      res.json({});
+    } else {
+      res.json(data);
+    }
+  });
+}
+
+// Route 6: GET /efficiency
+// Efficiency (Goals per Shot, Goals per Game)
+const efficiency = async function(req, res) {
+  const explicit = req.query.explicit === 'true' ? 1 : 0;
+
+  connection.query(`
+    SELECT t.teamID, t.name AS team_name, g.season,
+    SUM(g.homeGoals + g.awayGoals) AS total_goals, SUM(a.shots) AS total_shots,
+    (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(SUM(a.shots), 0)) AS goals_per_shot,
+    (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(COUNT(g.gameID), 0)) AS goals_per_game
+    FROM teams t
+    RIGHT OUTER JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    RIGHT OUTER JOIN appearances a ON g.gameID = a.gameID AND (a.playerID IN (SELECT playerID FROM players WHERE homeTeamID = t.teamID OR awayTeamID = t.teamID))
+    GROUP BY t.teamID, t.name, g.season
+  `, (err, data) => {
+    if (err || data.length === 0) {
+      console.log(err);
+      res.json({});
+    } else {
+      res.json(data);
+    }
+  });
+}
+
 module.exports = {
   test,
   author,
@@ -672,5 +769,9 @@ module.exports = {
   top_leagues,
   top_offensive_leagues,
   top_defensive_leagues,
-  team_roster
+  team_roster,
+  total_goals,
+  wld_ratios,
+  season_performance,
+  efficiency
 }
