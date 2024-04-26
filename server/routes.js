@@ -35,32 +35,33 @@ const test = async function (req, res) {
 }
 
 // Route 1: GET /top_scorers
+// Description: Returns the names of top 5 goal scorers across all seasons for each league respectively, including own goals.
 const top_scorers = async function (req, res) {
   connection.query(`
     WITH goal_scores AS (
-        SELECT
-            p.playerID,
-            l.leagueID,
-            l.name AS league_name,
-            p.name AS player_name,
-            SUM(a.goals + a.ownGoals) AS total_goals
-        FROM appearances a
-        JOIN players p ON a.playerID = p.playerID
-        JOIN games g ON a.gameID = g.gameID
-        JOIN leagues l ON g.leagueID = l.leagueID
-        GROUP BY p.playerID, l.leagueID
-    ), ranked_scores AS (
-        SELECT
-            leagueID,
-            league_name,
-            player_name,
-            total_goals,
-            RANK() OVER (PARTITION BY leagueID ORDER BY total_goals DESC) AS player_rank
-        FROM goal_scores
-    )
-    SELECT DISTINCT player_name
-    FROM ranked_scores
-    WHERE player_rank = 1;
+      SELECT
+          p.playerID,
+          l.leagueID,
+          l.name AS league_name,
+          p.name AS player_name,
+          SUM(a.goals + a.ownGoals) AS total_goals
+      FROM appearances a
+      JOIN players p ON a.playerID = p.playerID
+      JOIN games g ON a.gameID = g.gameID
+      JOIN leagues l ON g.leagueID = l.leagueID
+      GROUP BY p.playerID, l.leagueID
+  ), ranked_scores AS (
+      SELECT
+          leagueID,
+          league_name,
+          player_name,
+          total_goals,
+          RANK() OVER (PARTITION BY leagueID ORDER BY total_goals DESC) AS player_rank
+      FROM goal_scores
+  )
+  SELECT player_name
+  FROM ranked_scores
+  WHERE player_rank = 1; 
   `, (err, data) => {
     if (err) {
       console.log(err);
@@ -74,30 +75,30 @@ const top_scorers = async function (req, res) {
 }
 
 // Route 2: GET / most_influential_players
+// Description: Returns the data of the top 5 players who contributed to the most goals throughout seasons.
 const most_influential_players = async function (req, res) {
   connection.query(`
-      SELECT
-      p.playerID,
-      p.name AS player_name,
-      COUNT(DISTINCT a.gameID) AS appearances,
-      SUM(a.goals) AS total_goals,
-      SUM(a.assists) AS total_assists,
-      SUM(CASE WHEN sh.shotResult = 'Goal' THEN 1 ELSE 0 END) AS goals_from_shots
-    FROM
-      players p
-    LEFT OUTER JOIN
-      appearances a ON p.playerID = a.playerID
-    LEFT OUTER JOIN
-      games g ON a.gameID = g.gameID
-    LEFT OUTER JOIN
-      shots sh ON a.gameID = sh.gameID AND sh.shooterID = p.playerID AND sh.shotResult = 'Goal'
-    LEFT OUTER JOIN
-      teams t ON (t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID) AND (a.playerID IN (SELECT playerID FROM players WHERE teamID = t.teamID))
-    GROUP BY
-      p.playerID, p.name
-    ORDER BY
-      total_goals DESC, total_assists DESC
-    LIMIT 5;
+  WITH goals_from_shots AS (
+    SELECT shooterID,
+           SUM(CASE WHEN shotResult = 'Goal' THEN 1 ELSE 0 END) AS goals_from_shots
+    FROM shots
+    GROUP BY shooterID
+  )
+  SELECT
+    p.playerID,
+    p.name AS player_name,
+    COUNT(a.gameID) AS appearances,
+    SUM(a.goals) AS total_goals,
+    SUM(a.assists) AS total_assists,
+    COALESCE(gfs.goals_from_shots, 0) AS goals_from_shots
+  FROM players p
+  JOIN appearances a ON p.playerID = a.playerID
+  JOIN games g ON a.gameID = g.gameID
+  JOIN goals_from_shots gfs ON p.playerID = gfs.shooterID
+  JOIN teams t ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+  GROUP BY p.playerID, p.name
+  ORDER BY total_goals DESC, total_assists DESC
+  LIMIT 5;
 
   `, (err, data) => {
     if (err) {
