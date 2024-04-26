@@ -113,6 +113,7 @@ const most_influential_players = async function (req, res) {
 }
 
 // Route 3: GET /clutch_players
+// Description: Returns the names of the top 10 players who scored the most goals in the final 15 minutes of matches across all seasons, highlighting their clutch performance.
 const clutch_players = async function (req, res) {
   connection.query(`
     SELECT p.name, COUNT(*) AS late_goals
@@ -137,6 +138,7 @@ const clutch_players = async function (req, res) {
 
 
 // Route 4: GET /player_performance_per_season
+// Description: Returns the data of player’s average performance in a specific season
 const player_performance_per_season = async function (req, res) {
   const name = req.query.name;
   // if season is not provided, return all seasons
@@ -290,6 +292,7 @@ const player_performance_per_season = async function (req, res) {
 }
 
 // Route 5: GET /top_leagues
+// Description: Return the top-performing leagues overall, if the season is specified, return the top-performing leagues in that of the season.
 const top_leagues = async function (req, res) {
 
   const startSeason = req.query.season ?? 2014;
@@ -324,6 +327,7 @@ const top_leagues = async function (req, res) {
 }
 
 // Route 6: GET /top_offensive_leagues
+// Description: Returns the top offensive leagues overall, if the season is specified, return the top offensive leagues in that of the season.
 const top_offensive_leagues = async function (req, res) {
 
   const startSeason = req.query.season ?? 2014;
@@ -357,6 +361,7 @@ const top_offensive_leagues = async function (req, res) {
 }
 
 // Route 7: GET /top_defensive_leagues
+// Description: Returns the top defensive leagues overall, if the season is specified, return the top defensive leagues in that of the season.
 const top_defensive_leagues = async function (req, res) {
 
   const startSeason = req.query.season ?? 2014;
@@ -387,6 +392,7 @@ const top_defensive_leagues = async function (req, res) {
 }
 
 // Route 8: GET /team_roster
+// Description: returns the roster of each team, if season is specified, return the roster of each team in that of the season.
 const team_roster = async function (req, res) {
 
   const startSeason = req.query.season ?? 2014;
