@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Container, Divider, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper, List, ListItem, ListItemText } from '@mui/material';
+import { Container, Divider, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper, Skeleton, List, ListItem, ListItemText } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 
@@ -13,6 +13,10 @@ export default function HomePage() {
   const [influentialPlayers, setInfluentialPlayers] = useState([]);
   const [clutchPlayers, setClutchPlayers] = useState([]);
 
+  // Use the useState hook to store the loading state of our data
+  const [isLoading, setIsLoading] = useState(false); 
+
+  // Define the theme for the tables
   const theme = createTheme({
     components: {
       MuiTableCell: {
@@ -39,6 +43,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoading(true); // Indicate loading is starting
         // Fetch data from the server
         const [topScorersData, influentialPlayersData, clutchPlayersData] = await Promise.all([
           fetch(`http://${config.server_host}:${config.server_port}/top_scorers`),
@@ -58,6 +63,8 @@ export default function HomePage() {
       } catch (error) {
         console.error("Error fetching data:", error);
         // Handle errors (display an error message to the user)
+      } finally {
+        setIsLoading(false); // Data loading has finished
       }
     };
 
@@ -94,28 +101,41 @@ export default function HomePage() {
         <TableContainer component={Paper}>
           <Table size="small" aria-label="top scorers table">
             <TableHead>
-              <TableRow>
-                {topScorersColumns.map((column) => (
-                  <TableCell key={column.field} align={column.align}>
-                    {column.headerName}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {topScorers.map((player) => (
-                <TableRow key={player.league_name + player.player_name}> {/* Unique key suggestion */}
+                <TableRow>
                   {topScorersColumns.map((column) => (
                     <TableCell key={column.field} align={column.align}>
-                      {player[column.field]}
+                      {column.headerName}
                     </TableCell>
                   ))}
                 </TableRow>
-              ))}
+              </TableHead>
+            <TableBody>
+              {isLoading ? ( // Conditional rendering for loading state
+                Array.from(new Array(5)).map((_, index) => ( // Replace with Skeletons
+                  <TableRow key={index}> 
+                    {topScorersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        <Skeleton variant="text" width={column.width} /> 
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : ( 
+                topScorers.map((player) => ( // No need for curly braces here
+                  <TableRow key={player.league_name + player.player_name}> {/* Unique key suggestion */}
+                    {topScorersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        {player[column.field]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )) // Close parentheses correctly
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </ThemeProvider>
+
 
       <Divider />
       <h2>Top 10 Most Influential Players</h2>
@@ -132,22 +152,35 @@ export default function HomePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {influentialPlayers.map((player) => (
-                <TableRow key={player.player_id}>
-                  {influentialPlayersColumns.map((column) => (
-                    <TableCell key={column.field} align={column.align}>
-                      {player[column.field]}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
+              {isLoading ? ( // Conditional rendering for loading state
+                Array.from(new Array(5)).map((_, index) => ( 
+                  <TableRow key={index}> 
+                    {influentialPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        <Skeleton variant="text" width={column.width} /> 
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : ( 
+                influentialPlayers.map((player) => (
+                  <TableRow key={player.player_id}>
+                    {influentialPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        {player[column.field]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+      </TableBody>
           </Table>
         </TableContainer>
       </ThemeProvider>
+      
       <Divider />
       <h2>Top 10 Clutch Players</h2>
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={theme}> 
         <TableContainer component={Paper}>
           <Table size="small" aria-label="clutch players table"> 
             <TableHead>
@@ -160,19 +193,32 @@ export default function HomePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {clutchPlayers.slice(0, 10).map((player) => ( // Limit to top 10
-                <TableRow key={player.player_id}> 
-                  {clutchPlayersColumns.map((column) => (
-                    <TableCell key={column.field} align={column.align}>
-                      {player[column.field]}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+              {isLoading ? ( 
+                Array.from(new Array(5)).map((_, index) => ( 
+                  <TableRow key={index}> 
+                    {clutchPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        <Skeleton variant="text" width={column.width} /> 
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                clutchPlayers.slice(0, 10).map((player) => (
+                  <TableRow key={player.player_id}> 
+                    {clutchPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        {player[column.field]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </ThemeProvider>
+
     </Container>
   );
 };
