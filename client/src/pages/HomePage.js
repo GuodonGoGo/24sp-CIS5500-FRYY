@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Container, Divider, Link } from '@mui/material';
+import { Container, Divider, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper, List, ListItem, ListItemText } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { NavLink } from 'react-router-dom';
+
 
 import LazyTable from '../components/LazyTable';
 import SongCard from '../components/SongCard';
@@ -8,10 +10,9 @@ const config = require('../config.json');
 
 export default function HomePage() {
   // We use the setState hook to persist information across renders (such as the result of our API calls)
-  const [songOfTheDay, setSongOfTheDay] = useState({});
-  // TODO (TASK 13): add a state variable to store the app author (default to '')
-
-  const [selectedSongId, setSelectedSongId] = useState(null);
+  const [topScorers, setTopScorers] = useState([]);
+  const [influentialPlayers, setInfluentialPlayers] = useState([]);
+  const [clutchPlayers, setClutchPlayers] = useState([]);
 
   // The useEffect hook by default runs the provided callback after every render
   // The second (optional) argument, [], is the dependency array which signals
@@ -19,57 +20,115 @@ export default function HomePage() {
   // changes from the previous render. In this case, an empty array means the callback
   // will only run on the very first render.
   useEffect(() => {
-    // Fetch request to get the song of the day. Fetch runs asynchronously.
-    // The .then() method is called when the fetch request is complete
-    // and proceeds to convert the result to a JSON which is finally placed in state.
-    fetch(`http://${config.server_host}:${config.server_port}/random`)
-      .then(res => res.json())
-      .then(resJson => setSongOfTheDay(resJson));
+    const fetchData = async () => {
+      try {
+        // Fetch data from the server
+        const [topScorersData, influentialPlayersData, clutchPlayersData] = await Promise.all([
+          fetch(`http://${config.server_host}:${config.server_port}/top_scorers`),
+          fetch(`http://${config.server_host}:${config.server_port}/most_influential_players`),
+          fetch(`http://${config.server_host}:${config.server_port}/clutch_players`)
+        ]);
+        
+        // Parse JSON responses
+        const topScorers = await topScorersData.json();
+        const influentialPlayers = await influentialPlayersData.json();
+        const clutchPlayers = await clutchPlayersData.json();
 
-    // TODO (TASK 14): add a fetch call to get the app author (name not pennkey) and store the name field in the state variable
+        // Set the state variables with the fetched data
+        setTopScorers(topScorers);
+        setInfluentialPlayers(influentialPlayers);
+        setClutchPlayers(clutchPlayers);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        // Handle errors (display an error message to the user)
+      }
+    };
+
+    fetchData();
   }, []);
 
-  // Here, we define the columns of the "Top Songs" table. The songColumns variable is an array (in order)
-  // of objects with each object representing a column. Each object has a "field" property representing
-  // what data field to display from the raw data, "headerName" property representing the column label,
-  // and an optional renderCell property which given a row returns a custom JSX element to display in the cell.
-  const songColumns = [
-    {
-      field: 'title',
-      headerName: 'Song Title',
-      renderCell: (row) => <Link onClick={() => setSelectedSongId(row.song_id)}>{row.title}</Link> // A Link component is used just for formatting purposes
-    },
-    {
-      field: 'album',
-      headerName: 'Album Title',
-      renderCell: (row) => <NavLink to={`/albums/${row.album_id}`}>{row.album}</NavLink> // A NavLink component is used to create a link to the album page
-    },
-    {
-      field: 'plays',
-      headerName: 'Plays'
-    },
+
+  // Define the columns for the top scorers table
+  const influentialPlayersColumns = [
+    { field: 'player_name', headerName: 'Player', width: 150 },
+    { field: 'appearances', headerName: 'Appearances', width: 100, align: 'right' },
+    { field: 'total_goals', headerName: 'Goals', width: 80, align: 'right' },
+    { field: 'total_assists', headerName: 'Assists', width: 80, align: 'right' },
+    { field: 'goals_from_shots', headerName: 'Goals from Shots', width: 150, align: 'right' },
   ];
 
-  // TODO (TASK 15): define the columns for the top albums (schema is Album Title, Plays), where Album Title is a link to the album page
-  // Hint: this should be very similar to songColumns defined above, but has 2 columns instead of 3
-  // Hint: recall the schema for an album is different from that of a song (see the API docs for /top_albums). How does that impact the "field" parameter and the "renderCell" function for the album title column?
-  const albumColumns = [
-
-  ]
+  // Define the columns for the most influential players table
+  const clutchPlayersColumns = [
+    { field: 'name', headerName: 'Player', width: 150 }, // Assuming you're using 'name' in your data
+    { field: 'late_goals', headerName: 'Late Goals', width: 100, align: 'right' }, 
+  ];
 
   return (
     <Container>
-      {/* SongCard is a custom component that we made. selectedSongId && <SongCard .../> makes use of short-circuit logic to only render the SongCard if a non-null song is selected */}
-      {selectedSongId && <SongCard songId={selectedSongId} handleClose={() => setSelectedSongId(null)} />}
-      <h2>Check out your song of the day:&nbsp;
-        <Link onClick={() => setSelectedSongId(songOfTheDay.song_id)}>{songOfTheDay.title}</Link>
-      </h2>
       <Divider />
-      <h2>Top Songs</h2>
-      <LazyTable route={`http://${config.server_host}:${config.server_port}/top_songs`} columns={songColumns} />
+      <h2>Top 5 Goal Scorers</h2>
+      <List>
+        {topScorers.slice(0, 5).map((player) => (
+          <ListItem key={player.player_id}>
+            <ListItemText primary={player.player_name} />
+          </ListItem>
+        ))}
+      </List>
+
       <Divider />
-      {/* TODO (TASK 16): add a h2 heading, LazyTable, and divider for top albums. Set the LazyTable's props for defaultPageSize to 5 and rowsPerPageOptions to [5, 10] */}
-      {/* TODO (TASK 17): add a paragraph (<p></p>) that displays “Created by [name]” using the name state stored from TASK 13/TASK 14 */}
+      <h2>Top 5 Most Influential Players</h2>
+      <TableContainer component={Paper}>
+        <Table size="small" aria-label="influential players table"> {/* Added aria-label for accessibility */}
+          <TableHead>
+            <TableRow>
+              {influentialPlayersColumns.map((column) => (
+                <TableCell key={column.field} align={column.align}>
+                  {column.headerName}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {influentialPlayers.map((player) => (
+              <TableRow key={player.player_id}>
+                {influentialPlayersColumns.map((column) => (
+                  <TableCell key={column.field} align={column.align}>
+                    {player[column.field]}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Divider />
+      <h2>Top 10 Clutch Players</h2>
+      <TableContainer component={Paper}>
+        <Table size="small" aria-label="clutch players table"> 
+          <TableHead>
+            <TableRow>
+              {clutchPlayersColumns.map((column) => (
+                <TableCell key={column.field} align={column.align}>
+                  {column.headerName}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {clutchPlayers.slice(0, 10).map((player) => ( // Limit to top 10
+              <TableRow key={player.player_id}> 
+                {clutchPlayersColumns.map((column) => (
+                  <TableCell key={column.field} align={column.align}>
+                    {player[column.field]}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
     </Container>
   );
 };
