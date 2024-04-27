@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Container, Divider, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper, List, ListItem, ListItemText } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
-import { NavLink } from 'react-router-dom';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 
 import LazyTable from '../components/LazyTable';
@@ -13,6 +12,24 @@ export default function HomePage() {
   const [topScorers, setTopScorers] = useState([]);
   const [influentialPlayers, setInfluentialPlayers] = useState([]);
   const [clutchPlayers, setClutchPlayers] = useState([]);
+
+  const theme = createTheme({
+    components: {
+      MuiTableCell: {
+        styleOverrides: {
+          head: {
+            fontWeight: 'bold',
+            fontFamily: 'Roboto',
+            fontSize: '14px',
+            color: 'black',
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+            textTransform: 'uppercase',
+            padding: '10px',
+          },
+        },
+      },
+    },
+  });
 
   // The useEffect hook by default runs the provided callback after every render
   // The second (optional) argument, [], is the dependency array which signals
@@ -47,8 +64,14 @@ export default function HomePage() {
     fetchData();
   }, []);
 
+  // Define the columns for the top scorers list
+  const topScorersColumns = [
+    { field: 'player_name', headerName: 'Player', width: 180 }, 
+    { field: 'league_name', headerName: 'League', width: 150 },
+    { field: 'total_goals', headerName: 'Total Goals', width: 120, align: 'right' },
+  ];
 
-  // Define the columns for the top scorers table
+  // Define the columns for the most influential scorers table
   const influentialPlayersColumns = [
     { field: 'player_name', headerName: 'Player', width: 150 },
     { field: 'appearances', headerName: 'Appearances', width: 100, align: 'right' },
@@ -66,69 +89,90 @@ export default function HomePage() {
   return (
     <Container>
       <Divider />
-      <h2>Top 5 Goal Scorers</h2>
-      <List>
-        {topScorers.slice(0, 5).map((player) => (
-          <ListItem key={player.player_id}>
-            <ListItemText primary={player.player_name} />
-          </ListItem>
-        ))}
-      </List>
+      <h2>Top Scorers Across Leagues</h2>
+      <ThemeProvider theme={theme}>
+        <TableContainer component={Paper}>
+          <Table size="small" aria-label="top scorers table">
+            <TableHead>
+              <TableRow>
+                {topScorersColumns.map((column) => (
+                  <TableCell key={column.field} align={column.align}>
+                    {column.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {topScorers.map((player) => (
+                <TableRow key={player.league_name + player.player_name}> {/* Unique key suggestion */}
+                  {topScorersColumns.map((column) => (
+                    <TableCell key={column.field} align={column.align}>
+                      {player[column.field]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </ThemeProvider>
 
       <Divider />
-      <h2>Top 5 Most Influential Players</h2>
-      <TableContainer component={Paper}>
-        <Table size="small" aria-label="influential players table"> {/* Added aria-label for accessibility */}
-          <TableHead>
-            <TableRow>
-              {influentialPlayersColumns.map((column) => (
-                <TableCell key={column.field} align={column.align}>
-                  {column.headerName}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {influentialPlayers.map((player) => (
-              <TableRow key={player.player_id}>
+      <h2>Top 10 Most Influential Players</h2>
+      <ThemeProvider theme={theme}>
+        <TableContainer component={Paper}>
+          <Table size="small" aria-label="influential players table"> 
+            <TableHead>
+              <TableRow>
                 {influentialPlayersColumns.map((column) => (
                   <TableCell key={column.field} align={column.align}>
-                    {player[column.field]}
+                    {column.headerName}
                   </TableCell>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
+            </TableHead>
+            <TableBody>
+              {influentialPlayers.map((player) => (
+                <TableRow key={player.player_id}>
+                  {influentialPlayersColumns.map((column) => (
+                    <TableCell key={column.field} align={column.align}>
+                      {player[column.field]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </ThemeProvider>
       <Divider />
       <h2>Top 10 Clutch Players</h2>
-      <TableContainer component={Paper}>
-        <Table size="small" aria-label="clutch players table"> 
-          <TableHead>
-            <TableRow>
-              {clutchPlayersColumns.map((column) => (
-                <TableCell key={column.field} align={column.align}>
-                  {column.headerName}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {clutchPlayers.slice(0, 10).map((player) => ( // Limit to top 10
-              <TableRow key={player.player_id}> 
+      <ThemeProvider theme={theme}>
+        <TableContainer component={Paper}>
+          <Table size="small" aria-label="clutch players table"> 
+            <TableHead>
+              <TableRow>
                 {clutchPlayersColumns.map((column) => (
                   <TableCell key={column.field} align={column.align}>
-                    {player[column.field]}
+                    {column.headerName}
                   </TableCell>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
+            </TableHead>
+            <TableBody>
+              {clutchPlayers.slice(0, 10).map((player) => ( // Limit to top 10
+                <TableRow key={player.player_id}> 
+                  {clutchPlayersColumns.map((column) => (
+                    <TableCell key={column.field} align={column.align}>
+                      {player[column.field]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </ThemeProvider>
     </Container>
   );
 };

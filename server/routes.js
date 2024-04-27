@@ -50,7 +50,7 @@ const top_scorers = async function (req, res) {
       JOIN games g ON a.gameID = g.gameID
       JOIN leagues l ON g.leagueID = l.leagueID
       GROUP BY p.playerID, l.leagueID
-  ), ranked_scores AS (
+    ), ranked_scores AS (
       SELECT
           leagueID,
           league_name,
@@ -58,24 +58,22 @@ const top_scorers = async function (req, res) {
           total_goals,
           RANK() OVER (PARTITION BY leagueID ORDER BY total_goals DESC) AS player_rank
       FROM goal_scores
-  )
-  SELECT player_name
-  FROM ranked_scores
-  WHERE player_rank = 1; 
+    )
+    SELECT league_name, player_name, total_goals -- Select the desired columns
+    FROM ranked_scores
+    WHERE player_rank = 1; 
   `, (err, data) => {
     if (err) {
       console.log(err);
       res.json([]); // In case of an error, return an empty array
     } else {
-      // Extracting just the player names from the data array
-      const playerNames = data.map(item => item.player_name);
-      res.json(playerNames); // Return the array of top scorers' names
+      res.json(data);
     }
   });
 }
 
 // Route 2: GET / most_influential_players
-// Description: Returns the data of the top 5 players who contributed to the most goals throughout seasons.
+// Description: Returns the data of the top 10 players who contributed to the most goals throughout seasons.
 const most_influential_players = async function (req, res) {
   connection.query(`
   WITH goals_from_shots AS (
@@ -98,16 +96,14 @@ const most_influential_players = async function (req, res) {
   JOIN teams t ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
   GROUP BY p.playerID, p.name
   ORDER BY total_goals DESC, total_assists DESC
-  LIMIT 5;
+  LIMIT 10;
 
   `, (err, data) => {
     if (err) {
       console.log(err);
       res.json([]); // In case of an error, return an empty array
     } else {
-      // Extracting just the player names from the data array
-      const playerNames = data.map(item => item.player_name);
-      res.json(playerNames); // Return the array of top scorers' names
+      res.json(data); 
     }
   });
 }
@@ -128,10 +124,7 @@ const clutch_players = async function (req, res) {
       console.log(err);
       res.json([]); // In case of an error, return an empty array
     } else {
-      console.log(data); // Log the data array
-      // Extracting just the player names from the data array
-      const playerNames = data.map(item => item.name);
-      res.json(playerNames); // Return the array of top scorers' names
+      res.json(data);
     }
   });
 }
