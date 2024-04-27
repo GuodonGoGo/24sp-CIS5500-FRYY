@@ -1,31 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Container, FormControlLabel, Grid, Link, Slider, TextField } from '@mui/material';
+import { Button, Container, Grid, Slider, Select, MenuItem } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 
-import SongCard from '../components/SongCard';
-import { formatDuration } from '../helpers/formatter';
 const config = require('../config.json');
 
 export default function LeaguesPage() {
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState([]);
-  const [selectedSongId, setSelectedSongId] = useState(null);
 
-  const [season, setSeason] = useState('');
-  const [metric, setMetric] = useState('');
-  
-  const [title, setTitle] = useState('');
-  const [duration, setDuration] = useState([60, 660]);
-  const [plays, setPlays] = useState([0, 1100000000]);
-  const [danceability, setDanceability] = useState([0, 1]);
-  const [energy, setEnergy] = useState([0, 1]);
-  const [valence, setValence] = useState([0, 1]);
-  const [explicit, setExplicit] = useState(false);
+  const [season, setSeason] = useState([2014, 2020]);
+  const [metric, setMetric] = useState('overall');
 
-  useEffect(() => {
-
-
-  }, []);
+  // useEffect(() => {
+  //   fetch(`http://${config.server_host}:${config.server_port}/top_leagues`)
+  //   .then(res => res.json())
+  //   .then(resJson => {
+  //     const leaguesData = resJson.map((league) => ({ id: league.leagueID, ...league }));
+  //     setData(leaguesData);
+  //   });
+  // }, []);
 
   const search = () => {
     // Check which metric the user want to look at
@@ -40,6 +33,7 @@ export default function LeaguesPage() {
         break;
       case 'defensive':
         endpoint = '/top_defensive_leagues';
+        break;
       default:
         endpoint = '/top_leagues';
         break;
@@ -48,95 +42,97 @@ export default function LeaguesPage() {
     // Check if the user wants to look at a specific season
     // If they do, add the season to the endpoint
     if (season) {
-      endpoint += `?season=${season}`;
+      endpoint += `?startSeason=${season[0]}&endSeason=${season[1]}`;
     }
 
     fetch(`http://${config.server_host}:${config.server_port}${endpoint}`)
       .then(res => res.json())
       .then(resJson => {
-        const leaguesData = resJson.map((league) => ({ name: league.league_name, ...league }));
+        const leaguesData = resJson.map((league) => ({ id: league.leagueID, ...league }));
         setData(leaguesData);
       });
   }
 
-  // This defines the columns of the table of songs used by the DataGrid component.
-  // The format of the columns array and the DataGrid component itself is very similar to our
-  // LazyTable component. The big difference is we provide all data to the DataGrid component
-  // instead of loading only the data we need (which is necessary in order to be able to sort by column)
-  const columns = [
-    { field: 'title', headerName: 'Title', width: 300, renderCell: (params) => (
-        <Link onClick={() => setSelectedSongId(params.row.song_id)}>{params.value}</Link>
-    ) },
-    { field: 'duration', headerName: 'Duration' },
-    { field: 'plays', headerName: 'Plays' },
-    { field: 'danceability', headerName: 'Danceability' },
-    { field: 'energy', headerName: 'Energy' },
-    { field: 'valence', headerName: 'Valence' },
-    { field: 'tempo', headerName: 'Tempo' },
-    { field: 'key_mode', headerName: 'Key' },
-    { field: 'explicit', headerName: 'Explicit' },
-  ]
+  // Defien the columns for difference league metric searches
+  const overallColumns = [
+    { field: 'league_name', headerName: 'League Name' },
+    { field: 'avg_total_goals', headerName: 'Avg Total Goals' },
+    { field: 'avg_goal_difference', headerName: 'Avg Goal Difference' },
+  ];
 
-  // This component makes uses of the Grid component from MUI (https://mui.com/material-ui/react-grid/).
-  // The Grid component is super simple way to create a page layout. Simply make a <Grid container> tag
-  // (optionally has spacing prop that specifies the distance between grid items). Then, enclose whatever
-  // component you want in a <Grid item xs={}> tag where xs is a number between 1 and 12. Each row of the
-  // grid is 12 units wide and the xs attribute specifies how many units the grid item is. So if you want
-  // two grid items of the same size on the same row, define two grid items with xs={6}. The Grid container
-  // will automatically lay out all the grid items into rows based on their xs values.
+  const offensiveColumns = [
+    { field: 'league_name', headerName: 'League Name' },
+    { field: 'avg_goals', headerName: 'Avg Goals' },
+    { field: 'avg_expected_goals', headerName: 'Avg Expected Goals' },
+    { field: 'avg_shots', headerName: 'Avg Shots' },
+    { field: 'avg_shots_on_target', headerName: 'Avg Shots on Target' },
+    { field: 'avg_deep_shots', headerName: 'Avg Deep Shots' },
+    { field: 'avg_corners', headerName: 'Avg Corners' },
+  ];
+
+  const defensiveColumns = [
+    { field: 'league_name', headerName: 'League Name' },
+    { field: 'avg_goals_conceded', headerName: 'Avg Goals Conceded' },
+    { field: 'avg_shots_faced', headerName: 'Avg Shots Faced' },
+    { field: 'avg_ppda', headerName: 'Avg PPDA' },
+  ];
+
+  // Update the columns based on the selected metric
+  let selectedColumns;
+  switch (metric) {
+    case 'overall':
+      selectedColumns = overallColumns;
+      break;
+    case 'offensive':
+      selectedColumns = offensiveColumns;
+      break;
+    case 'defensive':
+      selectedColumns = defensiveColumns;
+      break;
+    default:
+      selectedColumns = overallColumns; // Default to overall columns
+      break;
+  }
+
   return (
     <Container>
-      {selectedSongId && <SongCard songId={selectedSongId} handleClose={() => setSelectedSongId(null)} />}
-      <h2>Search Songs</h2>
+      <h2>League Performances</h2>
       <Grid container spacing={6}>
-        <Grid item xs={8}>
-          <TextField label='Title' value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%" }}/>
-        </Grid>
-        <Grid item xs={4}>
-          <FormControlLabel
-            label='Explicit'
-            control={<Checkbox checked={explicit} onChange={(e) => setExplicit(e.target.checked)} />}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <p>Duration</p>
-          <Slider
-            value={duration}
-            min={60}
-            max={660}
-            step={10}
-            onChange={(e, newValue) => setDuration(newValue)}
-            valueLabelDisplay='auto'
-            valueLabelFormat={value => <div>{formatDuration(value)}</div>}
-          />
+        <Grid item xs = {6}>
+          <Select 
+            value={metric} 
+            onChange={(e) => setMetric(e.target.value)} 
+            fullWidth
+          >
+            <MenuItem value="overall">Overall</MenuItem>
+            <MenuItem value="offensive">Offensive</MenuItem>
+            <MenuItem value="defensive">Defensive</MenuItem>
+          </Select>
         </Grid>
         <Grid item xs={6}>
-          <p>Plays (millions)</p>
+          <p>Season</p>
           <Slider
-            value={plays}
-            min={0}
-            max={1100000000}
-            step={10000000}
-            onChange={(e, newValue) => setPlays(newValue)}
+            value={season}
+            min={2014}
+            max={2020}
+            step={1}
+            onChange={(e, newValue) => setSeason(newValue)}
             valueLabelDisplay='auto'
-            valueLabelFormat={value => <div>{value / 1000000}</div>}
           />
         </Grid>
-        {/* TODO (TASK 24): add sliders for danceability, energy, and valence (they should be all in the same row of the Grid) */}
-        {/* Hint: consider what value xs should be to make them fit on the same row. Set max, min, and a reasonable step. Is valueLabelFormat is necessary? */}
       </Grid>
       <Button onClick={() => search() } style={{ left: '50%', transform: 'translateX(-50%)' }}>
         Search
       </Button>
       <h2>Results</h2>
-      {/* Notice how similar the DataGrid component is to our LazyTable! What are the differences? */}
       <DataGrid
         rows={data}
-        columns={columns}
+        columns={selectedColumns}
         pageSize={pageSize}
         rowsPerPageOptions={[5, 10, 25]}
         onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
         autoHeight
+        columnBuffer={8}
       />
     </Container>
   );
