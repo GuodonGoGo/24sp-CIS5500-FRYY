@@ -412,30 +412,46 @@ const team_roster = async function (req, res) {
 
 //Route 9: GET /total_goals
 // Total goals per season
-const total_goals = async function (req, res) {
-  const explicit = req.query.explicit === 'true' ? 1 : 0;
+const total_goals = async function(req, res) {
+  // Assume 'title' comes from somewhere, maybe req.query.title or hardcoded as below
+  const title = req.query.title ?? '';
+  const goalsScoredLow = parseInt(req.query.goals_scored_low ?? 0);
+  const goalsScoredHigh = parseInt(req.query.goals_scored_high ?? 100);
+  const goalsConcededLow = parseInt(req.query.goals_conceded_low ?? 0);
+  const goalsConcededHigh = parseInt(req.query.goals_conceded_high ?? 100);
 
   connection.query(`
     SELECT t.teamID, t.name AS team_name, g.season,
     SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.homeGoals ELSE g.awayGoals END) AS goals_scored,
     SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.awayGoals ELSE g.homeGoals END) AS goals_conceded
-    FROM  teams t
+    FROM teams t
     JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    WHERE t.name LIKE ?
     GROUP BY t.teamID, t.name, g.season
-  `, (err, data) => {
+    HAVING
+        SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.homeGoals ELSE g.awayGoals END) BETWEEN ? AND ?
+        AND
+        SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.awayGoals ELSE g.homeGoals END) BETWEEN ? AND ?
+  `, ['%' + title + '%', goalsScoredLow, goalsScoredHigh, goalsConcededLow, goalsConcededHigh], (err, data) => {
     if (err || data.length === 0) {
       console.log(err);
-      res.json({});
+      res.json({error: "No data found or error occurred"});
     } else {
       res.json(data);
     }
   });
-}
+};
 
 // Route 10: GET /wld_ratios
 // Win/Loss/Draw Ratio Per Season
-const wld_ratios = async function (req, res) {
-  const explicit = req.query.explicit === 'true' ? 1 : 0;
+const wld_ratios = async function(req, res) {
+  const title = req.query.title ?? '';
+  const winsLow = parseInt(req.query.wins_low ?? 0);
+  const winsHigh = parseInt(req.query.wins_high ?? 100);
+  const lossesLow = parseInt(req.query.losses_low ?? 0);
+  const lossesHigh = parseInt(req.query.losses_high ?? 100);
+  const drawsLow = parseInt(req.query.draws_low ?? 0);
+  const drawsHigh = parseInt(req.query.draws_high ?? 100);
 
   connection.query(`
     SELECT t.teamID, t.name AS team_name, g.season, COUNT(*) AS total_games,
@@ -444,8 +460,15 @@ const wld_ratios = async function (req, res) {
     COUNT(CASE WHEN g.homeGoals = g.awayGoals THEN 1 END) AS draws
     FROM teams t
     JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    WHERE t.name LIKE ?
     GROUP BY t.teamID, t.name, g.season
-  `, (err, data) => {
+    HAVING
+        COUNT(CASE WHEN (g.homeTeamID = t.teamID AND g.homeGoals > g.awayGoals) OR (g.awayTeamID = t.teamID AND g.awayGoals > g.homeGoals) THEN 1 END) BETWEEN ? AND ?
+        AND
+        COUNT(CASE WHEN (g.homeTeamID = t.teamID AND g.homeGoals < g.awayGoals) OR (g.awayTeamID = t.teamID AND g.awayGoals < g.homeGoals) THEN 1 END) BETWEEN ? AND ?
+        AND
+        COUNT(CASE WHEN g.homeGoals = g.awayGoals THEN 1 END) BETWEEN ? AND ?
+  `, ['%' + title + '%', winsLow, winsHigh, lossesLow, lossesHigh, drawsLow, drawsHigh], (err, data) => {
     if (err || data.length === 0) {
       console.log(err);
       res.json({});
@@ -485,8 +508,12 @@ const season_performance = async function (req, res) {
 
 // Route 12: GET /efficiency
 // Efficiency (Goals per Shot, Goals per Game)
-const efficiency = async function (req, res) {
-  const explicit = req.query.explicit === 'true' ? 1 : 0;
+const efficiency = async function(req, res) {
+  const title = req.query.title ?? '';
+  const goals_per_shotLow = parseInt(req.query.goals_per_shot_low ?? 2);
+  const goals_per_shotHigh = parseInt(req.query.goals_per_shot_high ?? 4);
+  const goals_per_gameLow = parseInt(req.query.goals_per_game_low ?? 2);
+  const goals_per_gameHigh = parseInt(req.query.goals_per_game_high ?? 4);
 
   connection.query(`
     SELECT t.teamID, t.name AS team_name, g.season,
@@ -494,10 +521,15 @@ const efficiency = async function (req, res) {
     (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(SUM(a.shots), 0)) AS goals_per_shot,
     (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(COUNT(g.gameID), 0)) AS goals_per_game
     FROM teams t
-    RIGHT OUTER JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
-    RIGHT OUTER JOIN appearances a ON g.gameID = a.gameID AND (a.playerID IN (SELECT playerID FROM players WHERE homeTeamID = t.teamID OR awayTeamID = t.teamID))
+    JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    JOIN appearances a ON g.gameID = a.gameID AND (a.playerID IN (SELECT playerID FROM players WHERE homeTeamID = t.teamID OR awayTeamID = t.teamID))
+    WHERE t.name LIKE ?
     GROUP BY t.teamID, t.name, g.season
-  `, (err, data) => {
+    HAVING
+        (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(SUM(a.shots), 0)) BETWEEN ? AND ?
+        AND
+        (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(COUNT(g.gameID), 0)) BETWEEN ? AND ?
+  `, ['%' + title + '%', goals_per_shotLow, goals_per_shotHigh, goals_per_gameLow, goals_per_gameHigh], (err, data) => {
     if (err || data.length === 0) {
       console.log(err);
       res.json({});
@@ -506,6 +538,45 @@ const efficiency = async function (req, res) {
     }
   });
 }
+
+// Route 13: GET /roster_test
+const roster_test = async function (req, res) {
+  const teamName = req.query.title;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeason ?? 2020;
+
+  let query;
+  let queryParams;
+
+  if (teamName) {
+    // If teamName is provided, filter by team and seasons
+    query = `
+      SELECT team AS team_name, season, league, roster
+      FROM team_roster
+      WHERE team = ? AND season BETWEEN ? AND ?
+      ORDER BY season;
+    `;
+    queryParams = [teamName, parseInt(startSeason), parseInt(endSeason)];
+  } else {
+    // If no teamName, return all data within the specified seasons
+    query = `
+      SELECT team AS team_name, season, league, roster
+      FROM team_roster
+      WHERE season BETWEEN ? AND ?
+      ORDER BY season;
+    `;
+    queryParams = [parseInt(startSeason), parseInt(endSeason)];
+  }
+
+  connection.query(query, queryParams, (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error executing query' });
+    } else {
+      res.json(data);
+    }
+  });
+};
 
 module.exports = {
   test,
@@ -520,5 +591,6 @@ module.exports = {
   total_goals,
   wld_ratios,
   season_performance,
-  efficiency
+  efficiency,
+  roster_test
 }

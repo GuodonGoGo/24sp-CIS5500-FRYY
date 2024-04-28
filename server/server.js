@@ -23,6 +23,7 @@ app.get('/total_goals', routes.total_goals);
 app.get('/wld_ratios', routes.wld_ratios);
 app.get('/season_performance', routes.season_performance);
 app.get('/efficiency', routes.efficiency);
+app.get('/roster_test', routes.roster_test);
 
 app.listen(config.server_port, () => {
   console.log(`Server running at http://${config.server_host}:${config.server_port}/`)
