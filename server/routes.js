@@ -546,6 +546,45 @@ const efficiency = async function (req, res) {
   });
 }
 
+// Route 13: GET /roster_test
+const roster_test = async function (req, res) {
+  const teamName = req.query.teamName;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeason ?? 2020;
+
+  let query;
+  let queryParams;
+
+  if (teamName) {
+    // If teamName is provided, filter by team and seasons
+    query = `
+      SELECT season, roster
+      FROM team_roster
+      WHERE team = ? AND season BETWEEN ? AND ?
+      ORDER BY season;
+    `;
+    queryParams = [teamName, parseInt(startSeason), parseInt(endSeason)];
+  } else {
+    // If no teamName, return all data within the specified seasons
+    query = `
+      SELECT season, roster
+      FROM team_roster
+      WHERE season BETWEEN ? AND ?
+      ORDER BY season;
+    `;
+    queryParams = [parseInt(startSeason), parseInt(endSeason)];
+  }
+
+  connection.query(query, queryParams, (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error executing query' });
+    } else {
+      res.json(data);
+    }
+  });
+};
+
 module.exports = {
   test,
   top_scorers,
