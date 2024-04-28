@@ -546,7 +546,7 @@ const efficiency = async function(req, res) {
 
 // Route 13: GET /roster_test
 const roster_test = async function (req, res) {
-  const teamName = req.query.teamName;
+  const teamName = req.query.title;
   const startSeason = req.query.startSeason ?? 2014;
   const endSeason = req.query.endSeason ?? 2020;
 
@@ -556,7 +556,7 @@ const roster_test = async function (req, res) {
   if (teamName) {
     // If teamName is provided, filter by team and seasons
     query = `
-      SELECT season, roster
+      SELECT team AS team_name, season, league, roster
       FROM team_roster
       WHERE team = ? AND season BETWEEN ? AND ?
       ORDER BY season;
@@ -565,7 +565,7 @@ const roster_test = async function (req, res) {
   } else {
     // If no teamName, return all data within the specified seasons
     query = `
-      SELECT season, roster
+      SELECT team AS team_name, season, league, roster
       FROM team_roster
       WHERE season BETWEEN ? AND ?
       ORDER BY season;
