@@ -44,6 +44,7 @@ export default function NavBar() {
           <NavText href='/' text='SOCCER-X' isMain />
           <NavText href='/albums' text='TEAMS' />
           <NavText href='/songs' text='NULL' />
+          <NavText href='/leagues' text='LEAGUES' />
         </Toolbar>
       </Container>
     </AppBar>
