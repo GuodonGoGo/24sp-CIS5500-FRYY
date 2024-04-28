@@ -42,8 +42,8 @@ export default function NavBar() {
       <Container maxWidth='xl'>
         <Toolbar disableGutters>
           <NavText href='/' text='SOCCER-X' isMain />
-          <NavText href='/albums' text='TEAMS' />
-          <NavText href='/songs' text='NULL' />
+          <NavText href='/leagues' text='LEAGUE' />
+          <NavText href='/teams' text='TEAMS' />
         </Toolbar>
       </Container>
     </AppBar>
