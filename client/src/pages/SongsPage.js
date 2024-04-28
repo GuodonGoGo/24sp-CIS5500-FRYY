@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Container, FormControlLabel, Grid, Link, Slider, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
+import { CircularProgress, Button, Checkbox, Container, FormControlLabel, Grid, Link, Slider, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
+import '../styles.css';
 
 import SongCard from '../components/SongCard';
 import { formatDuration } from '../helpers/formatter';
@@ -17,32 +18,156 @@ export default function MainPage() {
     return (
         <Container>
             <Tabs value={tabIndex} onChange={handleTabChange} centered>
+                <Tab label="Players" />
                 <Tab label="Goals" />
                 <Tab label="Wins and Losses" />
                 <Tab label="Season Performance" />
             </Tabs>
-            {tabIndex === 0 && <SongsPage />}
-            {tabIndex === 1 && <TeamsPage />}
-            {tabIndex === 2 && <SeasonPage />}
+            {tabIndex === 0 && <PlayersPage />}
+            {tabIndex === 1 && <SongsPage />}
+            {tabIndex === 2 && <TeamsPage />}
+            {tabIndex === 3 && <SeasonPage />}
         </Container>
     );
+}
+
+export function PlayersPage() {
+  const [pageSize, setPageSize] = useState(10);
+  const [data, setData] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  const [title, setTitle] = useState('');
+
+  useEffect(() => {
+    setIsLoadingStats(true);
+    fetch(`http://${config.server_host}:${config.server_port}/roster_test`)
+      .then(res => res.json())
+      .then(resJson => {
+        const teamsWithId = resJson.map((team) => ({ id: `${team.team_name}_${team.season}`, ...team }));
+        setData(teamsWithId);
+    setIsLoadingStats(false);
+      });
+  }, []);
+
+  const search = () => {
+    fetch(`http://${config.server_host}:${config.server_port}/roster_test?title=${title}`
+    )
+      .then(res => res.json())
+      .then(resJson => {
+        // DataGrid expects an array of objects with a unique id.
+        // To accomplish this, we use a map with spread syntax (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
+        const teamsWithId = resJson.map((team) => ({ id: `${team.team_name}_${team.season}`, ...team }));
+        setData(teamsWithId);
+      });
+  }
+
+  // This defines the columns of the table of songs used by the DataGrid component.
+  // The format of the columns array and the DataGrid component itself is very similar to our
+  // LazyTable component. The big difference is we provide all data to the DataGrid component
+  // instead of loading only the data we need (which is necessary in order to be able to sort by column)
+  const columns = [
+    { field: 'team_name', headerName: 'Title', width: 160, renderCell: (params) => (
+        <Link onClick={() => setSelectedTeam(params.row.team_name)}>{params.value}</Link>
+    ) },
+    { field: 'season', headerName: 'Season', width: 160 },
+    { field: 'league', headerName: 'League', width: 160 },
+    {
+            field: 'roster',
+            headerName: 'Roster',
+            width: 520,
+            flex: 1,
+            renderCell: (params) => (
+                <div
+                style={{
+                    maxHeight: '50px', // Set a smaller max height
+                    overflow: 'auto',  // Apply the scrollbar if content overflows
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer' // Optional: makes it clear the text is interactable
+                    }}
+                >
+                    {params.value}
+                </div>
+            ),
+ }
+  ]
+
+  // This component makes uses of the Grid component from MUI (https://mui.com/material-ui/react-grid/).
+  // The Grid component is super simple way to create a page layout. Simply make a <Grid container> tag
+  // (optionally has spacing prop that specifies the distance between grid items). Then, enclose whatever
+  // component you want in a <Grid item xs={}> tag where xs is a number between 1 and 12. Each row of the
+  // grid is 12 units wide and the xs attribute specifies how many units the grid item is. So if you want
+  // two grid items of the same size on the same row, define two grid items with xs={6}. The Grid container
+  // will automatically lay out all the grid items into rows based on their xs values.
+  return (
+    <Container>
+      {isLoadingStats && (
+        <div className="loading-overlay">
+          <CircularProgress size={80} />
+        </div>
+      )}
+      {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
+      <h2>Search Teams</h2>
+      <Grid container spacing={6}>
+        <Grid item xs={12}>
+          <TextField label='Title' value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%" }}/>
+        </Grid>
+      </Grid>
+      <Button onClick={() => search() } style={{ left: '50%', transform: 'translateX(-50%)' }}>
+        Search
+      </Button>
+      <h2>Results</h2>
+      <DataGrid
+                rows={data}
+                columns={[
+                    { field: 'team_name', headerName: 'Title', width: 160 },
+                    { field: 'season', headerName: 'Season', width: 160 },
+                    { field: 'league', headerName: 'League', width: 160 },
+                    {
+            field: 'roster',
+            headerName: 'Roster',
+            width: 520,
+            flex: 1,
+            renderCell: (params) => (
+                <div
+                style={{
+                    maxHeight: '50px', // Set a smaller max height
+                    overflow: 'auto',  // Apply the scrollbar if content overflows
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer' // Optional: makes it clear the text is interactable
+                    }}
+                >
+                    {params.value}
+                </div>
+            ),
+ }
+                ]}
+                pageSize={pageSize}
+                rowsPerPageOptions={[5, 10, 25]}
+                autoHeight
+            />
+    </Container>
+  );
 }
 
 export function SongsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   const [title, setTitle] = useState('');
   const [goals_scored, set_goals_scored] = useState([0, 100]);
   const [goals_conceded, set_goals_conceded] = useState([0, 100]);
 
   useEffect(() => {
+    setIsLoadingStats(true);
     fetch(`http://${config.server_host}:${config.server_port}/total_goals`)
       .then(res => res.json())
       .then(resJson => {
         const teamsWithId = resJson.map((team) => ({ id: `${team.teamID}_${team.season}`, ...team }));
         setData(teamsWithId);
+    setIsLoadingStats(false);
       });
   }, []);
 
@@ -82,6 +207,11 @@ export function SongsPage() {
   // will automatically lay out all the grid items into rows based on their xs values.
   return (
     <Container>
+      {isLoadingStats && (
+        <div className="loading-overlay">
+          <CircularProgress size={80} />
+        </div>
+      )}
       {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
       <h2>Search Teams</h2>
       <Grid container spacing={6}>
@@ -137,6 +267,7 @@ export function TeamsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   const [title, setTitle] = useState('');
   const [wins, set_wins] = useState([0, 100]);
@@ -144,11 +275,13 @@ export function TeamsPage() {
   const [draws, set_draws] = useState([0, 100]);
 
   useEffect(() => {
+    setIsLoadingStats(true);
     fetch(`http://${config.server_host}:${config.server_port}/wld_ratios`)
       .then(res => res.json())
       .then(resJson => {
         const teamsWithId = resJson.map((team) => ({ id: `${team.teamID}_${team.season}`, ...team }));
         setData(teamsWithId);
+    setIsLoadingStats(false);
       });
   }, []);
 
@@ -191,6 +324,11 @@ export function TeamsPage() {
   // will automatically lay out all the grid items into rows based on their xs values.
   return (
     <Container>
+      {isLoadingStats && (
+        <div className="loading-overlay">
+          <CircularProgress size={80} />
+        </div>
+      )}
       {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
       <h2>Search Teams</h2>
       <Grid container spacing={6}>
@@ -260,17 +398,20 @@ export function SeasonPage() {
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   const [title, setTitle] = useState('');
   const [goals_per_shot, set_goals_per_shot] = useState([2, 4]);
   const [goals_per_game, set_goals_per_game] = useState([2, 4]);
 
   useEffect(() => {
+    setIsLoadingStats(true);
     fetch(`http://${config.server_host}:${config.server_port}/efficiency`)
       .then(res => res.json())
       .then(resJson => {
         const teamsWithId = resJson.map((team) => ({ id: `${team.teamID}_${team.season}`, ...team }));
         setData(teamsWithId);
+    setIsLoadingStats(false);
       });
   }, []);
 
@@ -312,6 +453,11 @@ export function SeasonPage() {
   // will automatically lay out all the grid items into rows based on their xs values.
   return (
     <Container>
+      {isLoadingStats && (
+        <div className="loading-overlay">
+          <CircularProgress size={80} />
+        </div>
+      )}
       {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
       <h2>Search Teams</h2>
       <Grid container spacing={6}>
