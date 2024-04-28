@@ -43,7 +43,7 @@ export default function NavBar() {
         <Toolbar disableGutters>
           <NavText href='/' text='SOCCER-X' isMain />
           <NavText href='/leagues' text='LEAGUE' />
-          <NavText href='/teams' text='TEAMS' />
+          <NavText href='/songs' text='TEAMS' />
         </Toolbar>
       </Container>
     </AppBar>
