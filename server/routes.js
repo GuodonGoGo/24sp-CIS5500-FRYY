@@ -596,5 +596,6 @@ module.exports = {
   total_goals,
   wld_ratios,
   season_performance,
-  efficiency
+  efficiency,
+  roster_test
 }
