@@ -14,8 +14,11 @@ export default function HomePage() {
   const [clutchPlayers, setClutchPlayers] = useState([]);
 
   // Use the useState hook to store the loading state of our data
-  const [isLoading, setIsLoading] = useState(false); 
-
+  const [isLoadingTopScorers, setIsLoadingTopScorers] = useState(false); 
+  const [isLoadingInfluentialPlayers, setIsLoadingInfluentialPlayers] = useState(false); 
+  const [isLoadingClutchPlayers, setIsLoadingClutchPlayers] = useState(false); 
+  const isLoading = isLoadingTopScorers || isLoadingInfluentialPlayers || isLoadingClutchPlayers;
+  
   // Define the theme for the tables
   const theme = createTheme({
     components: {
@@ -41,35 +44,73 @@ export default function HomePage() {
   // changes from the previous render. In this case, an empty array means the callback
   // will only run on the very first render.
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTopScorers = async () => {
       try {
-        setIsLoading(true); // Indicate loading is starting
-        // Fetch data from the server
-        const [topScorersData, influentialPlayersData, clutchPlayersData] = await Promise.all([
-          fetch(`http://${config.server_host}:${config.server_port}/top_scorers`),
-          fetch(`http://${config.server_host}:${config.server_port}/most_influential_players`),
-          fetch(`http://${config.server_host}:${config.server_port}/clutch_players`)
-        ]);
-        
-        // Parse JSON responses
-        const topScorers = await topScorersData.json();
-        const influentialPlayers = await influentialPlayersData.json();
-        const clutchPlayers = await clutchPlayersData.json();
-
-        // Set the state variables with the fetched data
-        setTopScorers(topScorers);
-        setInfluentialPlayers(influentialPlayers);
-        setClutchPlayers(clutchPlayers);
+        setIsLoadingTopScorers(true);
+        const startTime = Date.now();
+        const response = await fetch(`http://${config.server_host}:${config.server_port}/top_scorers`);
+        const data = await response.json();
+        const endTime = Date.now();
+        const elapsedTime = endTime - startTime;
+        const delay = Math.max(0, 3000 - elapsedTime); // Minimum delay of 3 seconds
+        await new Promise(resolve => setTimeout(resolve, delay));
+        setTopScorers(data);
+        setIsLoadingTopScorers(false);
       } catch (error) {
-        console.error("Error fetching data:", error);
-        // Handle errors (display an error message to the user)
-      } finally {
-        setIsLoading(false); // Data loading has finished
+        console.error("Error fetching top scorers:", error);
+        setIsLoadingTopScorers(false);
       }
     };
-
-    fetchData();
+  
+    const fetchInfluentialPlayers = async () => {
+      try {
+        setIsLoadingInfluentialPlayers(true);
+        const startTime = Date.now();
+        const response = await fetch(`http://${config.server_host}:${config.server_port}/most_influential_players`);
+        const data = await response.json();
+        const endTime = Date.now();
+        const elapsedTime = endTime - startTime;
+        const delay = Math.max(0, 3000 - elapsedTime); // Minimum delay of 3 seconds
+        await new Promise(resolve => setTimeout(resolve, delay));
+        setInfluentialPlayers(data);
+        setIsLoadingInfluentialPlayers(false);
+      } catch (error) {
+        console.error("Error fetching influential players:", error);
+        setIsLoadingInfluentialPlayers(false);
+      }
+    };
+  
+    const fetchClutchPlayers = async () => {
+      try {
+        setIsLoadingClutchPlayers(true);
+        const startTime = Date.now();
+        const response = await fetch(`http://${config.server_host}:${config.server_port}/clutch_players`);
+        const data = await response.json();
+        const endTime = Date.now();
+        const elapsedTime = endTime - startTime;
+        const delay = Math.max(0, 3000 - elapsedTime); // Minimum delay of 3 seconds
+        await new Promise(resolve => setTimeout(resolve, delay));
+        setClutchPlayers(data);
+        setIsLoadingClutchPlayers(false);
+      } catch (error) {
+        console.error("Error fetching clutch players:", error);
+        setIsLoadingClutchPlayers(false);
+      }
+    };
+  
+    // Schedule the fetch functions based on their expected execution time
+    const scheduleFetch = async () => {
+      // Fetch data for all three sets
+      const fetchPromises = [fetchTopScorers(), fetchInfluentialPlayers(), fetchClutchPlayers()];
+  
+      // Wait for all promises to resolve, then update state
+      await Promise.all(fetchPromises);
+    };
+  
+    scheduleFetch();
   }, []);
+  
+  
 
   // Define the columns for the top scorers list
   const topScorersColumns = [
@@ -114,7 +155,7 @@ export default function HomePage() {
                 </TableRow>
               </TableHead>
             <TableBody>
-              {isLoading ? ( // Conditional rendering for loading state
+              {isLoadingTopScorers ? ( // Conditional rendering for loading state
                 Array.from(new Array(5)).map((_, index) => ( // Replace with Skeletons
                   <TableRow key={index}> 
                     {topScorersColumns.map((column) => (
@@ -140,7 +181,6 @@ export default function HomePage() {
         </TableContainer>
       </ThemeProvider>
 
-
       <Divider />
       <h2>Top 10 Most Influential Players</h2>
       <ThemeProvider theme={theme}>
@@ -156,7 +196,7 @@ export default function HomePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {isLoading ? ( // Conditional rendering for loading state
+              {isLoadingInfluentialPlayers ? ( // Conditional rendering for loading state
                 Array.from(new Array(5)).map((_, index) => ( 
                   <TableRow key={index}> 
                     {influentialPlayersColumns.map((column) => (
@@ -197,7 +237,7 @@ export default function HomePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {isLoading ? ( 
+              {isLoadingClutchPlayers ? ( 
                 Array.from(new Array(5)).map((_, index) => ( 
                   <TableRow key={index}> 
                     {clutchPlayersColumns.map((column) => (
