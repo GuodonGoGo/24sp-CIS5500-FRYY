@@ -252,8 +252,8 @@ const player_performance_per_season = async function (req, res) {
 // Description: Return the top-performing leagues overall, if the season is specified, return the top-performing leagues in that of the season.
 const top_leagues = async function (req, res) {
 
-  const startSeason = req.query.season ?? 2014;
-  const endSeason = req.query.season ?? 2020;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeasoneason ?? 2020;
 
   connection.query(
     `WITH game_stats AS (
@@ -264,7 +264,8 @@ const top_leagues = async function (req, res) {
       WHERE season BETWEEN ${startSeason} AND ${endSeason}
       GROUP BY leagueID
     )
-    SELECT l.name AS league_name,
+    SELECT l.leagueID AS leagueID,
+          l.name AS league_name,
           AVG(gs.total_goals) AS avg_total_goals,
           AVG(gs.goal_difference) AS avg_goal_difference
     FROM game_stats gs
@@ -287,11 +288,12 @@ const top_leagues = async function (req, res) {
 // Description: Returns the top offensive leagues overall, if the season is specified, return the top offensive leagues in that of the season.
 const top_offensive_leagues = async function (req, res) {
 
-  const startSeason = req.query.season ?? 2014;
-  const endSeason = req.query.season ?? 2020;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeasoneason ?? 2020;
 
   connection.query(
-    `SELECT l.name AS league_name,
+    `SELECT l.leagueID AS leagueID,
+            l.name AS league_name,
             AVG(ts.goals) AS avg_goals,
             AVG(ts.xGoals) AS avg_expected_goals,
             AVG(ts.shots) AS avg_shots,
@@ -321,11 +323,12 @@ const top_offensive_leagues = async function (req, res) {
 // Description: Returns the top defensive leagues overall, if the season is specified, return the top defensive leagues in that of the season.
 const top_defensive_leagues = async function (req, res) {
 
-  const startSeason = req.query.season ?? 2014;
-  const endSeason = req.query.season ?? 2020;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeasoneason ?? 2020;
 
   connection.query(
-    `SELECT l.name AS league_name,
+    `SELECT l.leagueID AS leagueID,
+            l.name AS league_name,
             AVG(g.awayGoals) AS avg_goals_conceded,
             AVG(ts.shots) AS avg_shots_faced,
             AVG(ts.ppda) AS avg_ppda
