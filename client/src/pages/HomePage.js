@@ -163,6 +163,7 @@ export default function HomePage() {
 
   const fetchPlayerStats = async (playerName, season) => {
     try {
+      setPlayerStats(null);
       setIsLoadingStats(true);
       setIsModalOpen(true); 
       const response = await fetch(`http://${config.server_host}:${config.server_port}/player_performance_per_season?name=${playerName}`);
@@ -309,9 +310,9 @@ export default function HomePage() {
                   </TableRow>
                 ))
               ) : (
-                clutchPlayers.slice(0, 10).map((player) => (
+                clutchPlayers.map((player) => (
                   <TableRow key={player.player_id}
-                    onClick={() => fetchPlayerStats(player.player_name)} 
+                    onClick={() => fetchPlayerStats(player.name)} 
                     sx={{ '&:hover': { cursor: 'pointer', backgroundColor: 'grey' }}}
                   > 
                     {clutchPlayersColumns.map((column) => (
