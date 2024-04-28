@@ -546,6 +546,34 @@ const efficiency = async function (req, res) {
   });
 }
 
+// Route 13: GET /roster
+const roster_test = async function (req, res) {
+  const teamName = req.query.teamName;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeason ?? 2020;
+
+  if (!teamName) {
+    return res.status(400).json({ error: 'teamName is required' });
+  }
+
+  const query = `
+    SELECT season, roster
+    FROM team_roster
+    WHERE team = ? AND season BETWEEN ? AND ?
+    ORDER BY season;
+  `;
+
+  connection.query(query, [teamName, parseInt(startSeason), parseInt(endSeason)], (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error executing query' });
+    } else {
+      res.json(data);
+    }
+  });
+};
+
+
 module.exports = {
   test,
   top_scorers,
@@ -559,5 +587,6 @@ module.exports = {
   total_goals,
   wld_ratios,
   season_performance,
-  efficiency
+  efficiency,
+  roster_test
 }
