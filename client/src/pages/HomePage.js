@@ -18,17 +18,37 @@ export default function HomePage() {
   const [isLoadingInfluentialPlayers, setIsLoadingInfluentialPlayers] = useState(false); 
   const [isLoadingClutchPlayers, setIsLoadingClutchPlayers] = useState(false); 
   const isLoading = isLoadingTopScorers || isLoadingInfluentialPlayers || isLoadingClutchPlayers;
-  
+
   // Define the theme for the tables
   const theme = createTheme({
+    palette: {
+      mode: 'dark',
+      background: {
+        default: 'rgba(0, 0, 0, 0.6)', // Adjust transparency as needed
+      },
+    },
     components: {
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: 'transparent',
+          },
+        },
+      },
+      MuiTableContainer: {
+        styleOverrides: {
+          root: {
+            boxShadow: 'none',
+          },
+        },
+      },
       MuiTableCell: {
         styleOverrides: {
           head: {
             fontWeight: 'bold',
             fontFamily: 'Roboto',
             fontSize: '14px',
-            color: 'black',
+            color: 'white',
             backgroundColor: 'rgba(0, 0, 0, 0.1)',
             textTransform: 'uppercase',
             padding: '10px',

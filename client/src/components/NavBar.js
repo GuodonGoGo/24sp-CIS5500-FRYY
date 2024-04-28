@@ -10,9 +10,12 @@ function NavText({ href, text, isMain }) {
       noWrap
       style={{
         marginRight: '30px',
-        fontFamily: 'monospace',
-        fontWeight: 700,
+        fontFamily: 'Audiowide, sans-serif', // Apply Audiowide font
+        fontWeight: isMain ? 700 : 400, 
         letterSpacing: '.3rem',
+        color:  'white', // Change to white
+        textShadow: '0px 1px 2px rgba(0, 0, 0, 0.15)',
+        transition: 'color 0.3s ease' 
       }}
     >
       <NavLink
@@ -21,6 +24,8 @@ function NavText({ href, text, isMain }) {
           color: 'inherit',
           textDecoration: 'none',
         }}
+        onMouseEnter={(e) => { e.target.style.color = '#999999'} } // Example hover
+        onMouseLeave={(e) => { e.target.style.color = 'inherit'} }
       >
         {text}
       </NavLink>
@@ -36,7 +41,7 @@ export default function NavBar() {
     <AppBar position='static'>
       <Container maxWidth='xl'>
         <Toolbar disableGutters>
-          <NavText href='/' text='SWIFTIFY' isMain />
+          <NavText href='/' text='SOCCER-X' isMain />
           <NavText href='/albums' text='ALBUMS' />
           <NavText href='/songs' text='SONGS' />
         </Toolbar>
