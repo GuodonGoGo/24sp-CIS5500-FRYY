@@ -14,8 +14,20 @@ import LeaguesPage from './pages/LeaguesPage'
 // in this case, we only change the color scheme
 export const theme = createTheme({
   palette: {
-    primary: indigo,
-    secondary: amber,
+    mode: 'dark',  // Optional: Consider a dark mode base for extra elegance
+    primary: {
+      main: '#ffffff', 
+    },
+    secondary: {
+      main: '#ff0000',
+    },
+    text: {
+      primary: '#eeeeee',
+      secondary: '#999999',
+    },
+  },
+  typography: {
+    fontFamily: ['Roboto', 'sans-serif'].join(','),
   },
 });
 
