@@ -139,68 +139,50 @@ const player_performance_per_season = async function (req, res) {
 
   if (!season) {
     connection.query(`
-    WITH gamesInfo AS(
-      SELECT P.playerID AS playerID, P.name AS name, G.season AS season, G.homeTeamID AS homeTeamID, G.awayTeamID AS awayTeamID, G.leagueID AS leagueID
+    WITH seasonStats AS (
+      SELECT 
+          P.name AS playerName,
+          G.season AS season,
+          TP.name AS team,
+          L.name AS league,
+          COUNT(*) AS games_played,
+          SUM(A.goals) AS num_goals,
+          SUM(A.shots) AS num_shots,
+          AVG(A.goals) AS avg_goals,
+          AVG(A.ownGoals) AS avg_own_goals,
+          AVG(A.shots) AS avg_shots,
+          AVG(A.assists) AS avg_assists,
+          AVG(A.keyPasses) AS avg_keyPasses,
+          AVG(A.yellowCard) AS avg_yellowCard,
+          AVG(A.redCard) AS avg_redCard,
+          AVG(A.time) AS avg_minutes
       FROM players P
-          JOIN appearances A ON P.playerID = A.playerID
-          JOIN games G ON A.gameID = G.gameID
-   ), teamsPlayed AS(
-      SELECT playerID, name, season, teamID, leagueID, COUNT(*) AS TOTAL_APPEARANCE
-      FROM (SELECT playerID, name, season, homeTeamID AS teamID, leagueID
-            FROM gamesInfo
-   
-            UNION ALL
-   
-            SELECT playerID, name, season, awayTeamID AS teamID, leagueID
-            FROM gamesInfo) TA
-      GROUP BY name, season, teamID
-      ORDER BY TOTAL_APPEARANCE DESC
-   ), teamsBelong AS (
-      SELECT TP.playerID, TP.name, season, TP.teamID, T.name AS team, L.name AS league, MAX(TOTAL_APPEARANCE) AS TOTAL_APPEARANCE
-      FROM teamsPlayed TP
-          JOIN teams T ON TP.teamID = T.teamID
-          JOIN leagues L ON TP.leagueID = L.leagueID
-      GROUP BY TP.name, season
-   ), seasonAvg AS (
-      SELECT P.name AS playerName,
-             G.season AS season,
-             SUM(A.goals) AS num_goals,
-             SUM(A.shots) AS num_shots,
-             SUM(A.assists) AS num_assists,
-             ROUND(AVG(A.goals), 2) AS avg_goal,
-             ROUND(AVG(A.ownGoals), 2) AS avg_own_goal,
-             ROUND(AVG(A.shots), 2) AS avg_shots,
-             ROUND(AVG(A.assists), 2) AS avg_assists,
-             ROUND(AVG(A.keyPasses), 2) AS avg_keyPasses,
-             ROUND(AVG(A.yellowCard), 2) AS avg_yellowCard,
-             ROUND(AVG(A.redCard), 2) AS avg_redCard,
-             ROUND(AVG(A.time), 2) AS avg_minutes
-      FROM appearances A
-          JOIN games G ON A.gameID = G.gameID
-          JOIN players P ON A.playerID = P.playerID
+      JOIN appearances A ON P.playerID = A.playerID
+      JOIN games G ON A.gameID = G.gameID
+      JOIN teams TP ON (G.homeTeamID = TP.teamID OR G.awayTeamID = TP.teamID)
+      JOIN leagues L ON G.leagueID = L.leagueID
       WHERE P.name = ?
-      GROUP BY P.name, G.season
-   )
-   SELECT TB.name AS name,
-         SA.season AS season,
-         TB.team AS team,
-         TB.league as league,
-         TB.TOTAL_APPEARANCE AS games_played,
-         SA.num_goals AS num_goals,
-         SA.num_shots AS num_shots,
-         ROUND(AVG(num_goals / num_shots), 2) AS goals_per_shot,
-         SA.avg_goal AS avg_goal_per_game,
-         SA.avg_own_goal AS avg_own_goal_per_game,
-         SA.avg_shots AS avg_shots_per_game,
-         SA.avg_assists AS avg_assists_per_game,
-         SA.avg_keyPasses AS avg_keyPasses_per_game,
-         SA.avg_yellowCard AS avg_yellowCard,
-         SA.avg_redCard AS avg_redCard,
-         SA.avg_minutes AS avg_minutes_per_game
-   FROM seasonAvg SA
-      JOIN teamsBelong TB ON SA.playerName = TB.name AND SA.season = TB.season
-   GROUP BY name, season, team
-   ORDER BY name, season, team;
+      GROUP BY P.name, G.season, L.name
+    )
+    SELECT 
+        playerName,
+        season,
+        league,
+        games_played,
+        num_goals,
+        num_shots,
+        ROUND(num_goals / NULLIF(num_shots, 0), 2) AS goals_per_shot,
+        avg_goals AS avg_goal_per_game,
+        avg_own_goals AS avg_own_goal_per_game,
+        avg_shots AS avg_shots_per_game,
+        avg_assists AS avg_assists_per_game,
+        avg_keyPasses AS avg_keyPasses_per_game,
+        avg_yellowCard AS avg_yellowCard,
+        avg_redCard AS avg_redCard,
+        avg_minutes AS avg_minutes_per_game
+    FROM seasonStats
+    ORDER BY playerName, season;
+  
       `, [name], (err, data) => {
       if (err) {
         console.log(err);
@@ -211,68 +193,50 @@ const player_performance_per_season = async function (req, res) {
     });
   } else {
     connection.query(`    
-      WITH gamesInfo AS(
-        SELECT P.playerID AS playerID, P.name AS name, G.season AS season, G.homeTeamID AS homeTeamID, G.awayTeamID AS awayTeamID, G.leagueID AS leagueID
-        FROM players P
-            JOIN appearances A ON P.playerID = A.playerID
-            JOIN games G ON A.gameID = G.gameID
-    ), teamsPlayed AS(
-        SELECT playerID, name, season, teamID, leagueID, COUNT(*) AS TOTAL_APPEARANCE
-        FROM (SELECT playerID, name, season, homeTeamID AS teamID, leagueID
-              FROM gamesInfo
-    
-              UNION ALL
-    
-              SELECT playerID, name, season, awayTeamID AS teamID, leagueID
-              FROM gamesInfo) TA
-        GROUP BY name, season, teamID
-        ORDER BY TOTAL_APPEARANCE DESC
-    ), teamsBelong AS (
-        SELECT TP.playerID, TP.name, season, TP.teamID, T.name AS team, L.name AS league, MAX(TOTAL_APPEARANCE) AS TOTAL_APPEARANCE
-        FROM teamsPlayed TP
-            JOIN teams T ON TP.teamID = T.teamID
-            JOIN leagues L ON TP.leagueID = L.leagueID
-        GROUP BY TP.name, season
-    ), seasonAvg AS (
-        SELECT P.name AS playerName,
-              G.season AS season,
-              SUM(A.goals) AS num_goals,
-              SUM(A.shots) AS num_shots,
-              SUM(A.assists) AS num_assists,
-              ROUND(AVG(A.goals), 2) AS avg_goal,
-              ROUND(AVG(A.ownGoals), 2) AS avg_own_goal,
-              ROUND(AVG(A.shots), 2) AS avg_shots,
-              ROUND(AVG(A.assists), 2) AS avg_assists,
-              ROUND(AVG(A.keyPasses), 2) AS avg_keyPasses,
-              ROUND(AVG(A.yellowCard), 2) AS avg_yellowCard,
-              ROUND(AVG(A.redCard), 2) AS avg_redCard,
-              ROUND(AVG(A.time), 2) AS avg_minutes
-        FROM appearances A
-            JOIN games G ON A.gameID = G.gameID
-            JOIN players P ON A.playerID = P.playerID
-        WHERE P.name = ? AND G.season = ?
-        GROUP BY P.name, G.season
+    WITH seasonStats AS (
+      SELECT 
+          P.name AS playerName,
+          G.season AS season,
+          TP.name AS team,
+          L.name AS league,
+          COUNT(*) AS games_played,
+          SUM(A.goals) AS num_goals,
+          SUM(A.shots) AS num_shots,
+          AVG(A.goals) AS avg_goals,
+          AVG(A.ownGoals) AS avg_own_goals,
+          AVG(A.shots) AS avg_shots,
+          AVG(A.assists) AS avg_assists,
+          AVG(A.keyPasses) AS avg_keyPasses,
+          AVG(A.yellowCard) AS avg_yellowCard,
+          AVG(A.redCard) AS avg_redCard,
+          AVG(A.time) AS avg_minutes
+      FROM players P
+      JOIN appearances A ON P.playerID = A.playerID
+      JOIN games G ON A.gameID = G.gameID
+      JOIN teams TP ON (G.homeTeamID = TP.teamID OR G.awayTeamID = TP.teamID)
+      JOIN leagues L ON G.leagueID = L.leagueID
+      WHERE P.name = ? AND G.season = ?
+      GROUP BY P.name, G.season, L.name
     )
-    SELECT TB.name AS name,
-          SA.season AS season,
-          TB.team AS team,
-          TB.league as league,
-          TB.TOTAL_APPEARANCE AS games_played,
-          SA.num_goals AS num_goals,
-          SA.num_shots AS num_shots,
-          ROUND(AVG(num_goals / num_shots), 2) AS goals_per_shot,
-          SA.avg_goal AS avg_goal_per_game,
-          SA.avg_own_goal AS avg_own_goal_per_game,
-          SA.avg_shots AS avg_shots_per_game,
-          SA.avg_assists AS avg_assists_per_game,
-          SA.avg_keyPasses AS avg_keyPasses_per_game,
-          SA.avg_yellowCard AS avg_yellowCard,
-          SA.avg_redCard AS avg_redCard,
-          SA.avg_minutes AS avg_minutes_per_game
-    FROM seasonAvg SA
-        JOIN teamsBelong TB ON SA.playerName = TB.name AND SA.season = TB.season
-    GROUP BY name, season, team
-    ORDER BY name, season, team;
+    SELECT 
+        playerName,
+        season,
+        league,
+        games_played,
+        num_goals,
+        num_shots,
+        ROUND(num_goals / NULLIF(num_shots, 0), 2) AS goals_per_shot,
+        avg_goals AS avg_goal_per_game,
+        avg_own_goals AS avg_own_goal_per_game,
+        avg_shots AS avg_shots_per_game,
+        avg_assists AS avg_assists_per_game,
+        avg_keyPasses AS avg_keyPasses_per_game,
+        avg_yellowCard AS avg_yellowCard,
+        avg_redCard AS avg_redCard,
+        avg_minutes AS avg_minutes_per_game
+    FROM seasonStats
+    ORDER BY playerName, season;
+  
       `, [name, season], (err, data) => {
       if (err) {
         console.log(err);

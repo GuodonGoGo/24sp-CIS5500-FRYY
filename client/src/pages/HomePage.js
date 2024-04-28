@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { CircularProgress, Container, Divider, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper, Skeleton, List, ListItem, ListItemText } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-
+import Modal from '@mui/material/Modal';
 import '../styles.css';
+
 import LazyTable from '../components/LazyTable';
 import SongCard from '../components/SongCard';
+
 const config = require('../config.json');
 
 export default function HomePage() {
@@ -17,7 +19,12 @@ export default function HomePage() {
   const [isLoadingTopScorers, setIsLoadingTopScorers] = useState(false); 
   const [isLoadingInfluentialPlayers, setIsLoadingInfluentialPlayers] = useState(false); 
   const [isLoadingClutchPlayers, setIsLoadingClutchPlayers] = useState(false); 
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const isLoading = isLoadingTopScorers || isLoadingInfluentialPlayers || isLoadingClutchPlayers;
+
+  // For the jump out modal
+  const [playerStats, setPlayerStats] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Define the theme for the tables
   const theme = createTheme({
@@ -154,6 +161,32 @@ export default function HomePage() {
     { field: 'late_goals', headerName: 'Late Goals', width: 100, align: 'right' }, 
   ];
 
+  const fetchPlayerStats = async (playerName, season) => {
+    try {
+      setIsLoadingStats(true);
+      setIsModalOpen(true); 
+      const response = await fetch(`http://${config.server_host}:${config.server_port}/player_performance_per_season?name=${playerName}`);
+      const data = await response.json();
+      setPlayerStats(data);
+      
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const modalStyles = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    bgcolor: 'background.paper',  // Match MUI theme
+    boxShadow: 24,
+    padding: 4, 
+    // ... more styles as needed 
+  };
+
   return (
     <Container>
       {isLoading && (
@@ -161,22 +194,23 @@ export default function HomePage() {
           <CircularProgress size={80} /> 
         </div>
       )}
+
       <h2>Top Scorers Across Leagues</h2>
       <ThemeProvider theme={theme}>
         <TableContainer component={Paper}>
           <Table size="small" aria-label="top scorers table">
             <TableHead>
-                <TableRow>
-                  {topScorersColumns.map((column) => (
-                    <TableCell key={column.field} align={column.align}>
-                      {column.headerName}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
+              <TableRow>
+                {topScorersColumns.map((column) => (
+                  <TableCell key={column.field} align={column.align}>
+                    {column.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
             <TableBody>
-              {isLoadingTopScorers ? ( // Conditional rendering for loading state
-                Array.from(new Array(5)).map((_, index) => ( // Replace with Skeletons
+              {isLoadingTopScorers ? ( 
+                Array.from(new Array(5)).map((_, index) => ( 
                   <TableRow key={index}> 
                     {topScorersColumns.map((column) => (
                       <TableCell key={column.field} align={column.align}>
@@ -186,20 +220,24 @@ export default function HomePage() {
                   </TableRow>
                 ))
               ) : ( 
-                topScorers.map((player) => ( // No need for curly braces here
-                  <TableRow key={player.league_name + player.player_name}> {/* Unique key suggestion */}
+                topScorers.map((player) => ( 
+                  <TableRow key={player.league_name + player.player_name}
+                    onClick={() => fetchPlayerStats(player.player_name)} 
+                    sx={{ '&:hover': { cursor: 'pointer', backgroundColor: 'grey' }}}
+                  > 
                     {topScorersColumns.map((column) => (
                       <TableCell key={column.field} align={column.align}>
                         {player[column.field]}
                       </TableCell>
                     ))}
                   </TableRow>
-                )) // Close parentheses correctly
+                ))         
               )}
             </TableBody>
           </Table>
         </TableContainer>
       </ThemeProvider>
+
 
       <Divider />
       <h2>Top 10 Most Influential Players</h2>
@@ -228,7 +266,10 @@ export default function HomePage() {
                 ))
               ) : ( 
                 influentialPlayers.map((player) => (
-                  <TableRow key={player.player_id}>
+                  <TableRow key={player.player_id}
+                    onClick={() => fetchPlayerStats(player.player_name)} 
+                    sx={{ '&:hover': { cursor: 'pointer', backgroundColor: 'grey' }}}
+                  >
                     {influentialPlayersColumns.map((column) => (
                       <TableCell key={column.field} align={column.align}>
                         {player[column.field]}
@@ -269,7 +310,10 @@ export default function HomePage() {
                 ))
               ) : (
                 clutchPlayers.slice(0, 10).map((player) => (
-                  <TableRow key={player.player_id}> 
+                  <TableRow key={player.player_id}
+                    onClick={() => fetchPlayerStats(player.player_name)} 
+                    sx={{ '&:hover': { cursor: 'pointer', backgroundColor: 'grey' }}}
+                  > 
                     {clutchPlayersColumns.map((column) => (
                       <TableCell key={column.field} align={column.align}>
                         {player[column.field]}
@@ -282,6 +326,62 @@ export default function HomePage() {
           </Table>
         </TableContainer>
       </ThemeProvider>
+        
+      <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <div style={modalStyles}>
+          <h2 style={{ backgroundColor: 'black', padding: '10px' }}>
+            Player Statistics: {playerStats ? playerStats[0].playerName : ''}
+          </h2>
+          {isLoadingStats ? (
+            <div className="loading-overlay"> 
+              <CircularProgress size={80} /> 
+            </div>
+          ) : (
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}> {/* Scrollable container */}
+              <TableContainer component={Paper} sx={{ maxWidth: 800 }}> {/* Adjust maxWidth if needed */}
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Season</TableCell>
+                      <TableCell align="right">League</TableCell>
+                      <TableCell align="right">Games Played</TableCell>
+                      <TableCell align="right">Goals</TableCell>
+                      <TableCell align="right">Shots</TableCell>
+                      <TableCell align="right">Goals/Shot</TableCell>
+                      <TableCell align="right">Avg Goals/Game</TableCell>
+                      <TableCell align="right">Avg Shots/Game</TableCell>
+                      <TableCell align="right">Avg Assists/Game</TableCell>
+                      <TableCell align="right">Avg Key Passes/Game</TableCell>
+                      <TableCell align="right">Avg Yellow Card/Game</TableCell>
+                      <TableCell align="right">Avg Red Card/Game</TableCell>
+                      <TableCell align="right">Avg Minutes/Game</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {playerStats && playerStats.map((row) => (
+                      <TableRow key={row.season}>
+                        <TableCell>{row.season}</TableCell>
+                        <TableCell align="right">{row.league}</TableCell>
+                        <TableCell align="right">{row.games_played}</TableCell>
+                        <TableCell align="right">{row.num_goals}</TableCell>
+                        <TableCell align="right">{row.num_shots}</TableCell>
+                        <TableCell align="right">{row.goals_per_shot}</TableCell>
+                        <TableCell align="right">{row.avg_goal_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_shots_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_assists_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_keyPasses_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_yellowCard}</TableCell>
+                        <TableCell align="right">{row.avg_redCard}</TableCell>
+                        <TableCell align="right">{row.avg_minutes_per_game}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </div>
+          )}
+        </div>
+      </Modal>
 
     </Container>
   );
