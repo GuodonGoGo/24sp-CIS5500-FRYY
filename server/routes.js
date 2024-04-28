@@ -266,13 +266,12 @@ const top_leagues = async function (req, res) {
     )
     SELECT l.leagueID AS leagueID,
           l.name AS league_name,
-          AVG(gs.total_goals) AS avg_total_goals,
-          AVG(gs.goal_difference) AS avg_goal_difference
+          ROUND(AVG(gs.total_goals), 2) AS avg_total_goals,
+          ROUND(AVG(gs.goal_difference), 2) AS avg_goal_difference
     FROM game_stats gs
         JOIN leagues l ON gs.leagueID = l.leagueID
     GROUP BY l.name
-    ORDER BY avg_total_goals DESC,
-            avg_goal_difference
+    ORDER BY league_name
     `, (err, data) => {
     if (err) {
       console.log(err);
@@ -294,20 +293,18 @@ const top_offensive_leagues = async function (req, res) {
   connection.query(
     `SELECT l.leagueID AS leagueID,
             l.name AS league_name,
-            AVG(ts.goals) AS avg_goals,
-            AVG(ts.xGoals) AS avg_expected_goals,
-            AVG(ts.shots) AS avg_shots,
-            AVG(ts.shotsOnTarget) AS avg_shots_on_target,
-            AVG(ts.deep) AS avg_deep_shots,
-            AVG(ts.corners) AS avg_corners
+            ROUND(AVG(ts.goals), 2) AS avg_goals,
+            ROUND(AVG(ts.xGoals), 2) AS avg_expected_goals,
+            ROUND(AVG(ts.shots), 2) AS avg_shots,
+            ROUND(AVG(ts.shotsOnTarget), 2) AS avg_shots_on_target,
+            ROUND(AVG(ts.deep), 2) AS avg_deep_shots,
+            ROUND(AVG(ts.corners), 2) AS avg_corners
     FROM teamstats ts
         JOIN games g ON ts.gameID = g.gameID
         JOIN leagues l ON g.leagueID = l.leagueID
     WHERE ts.season BETWEEN ${startSeason} AND ${endSeason}
     GROUP BY l.name
-    ORDER BY avg_goals DESC,
-            avg_shots_on_target DESC,
-            avg_corners DESC
+    ORDER BY league_name
     `, (err, data) => {
     if (err) {
       console.log(err);
@@ -329,17 +326,15 @@ const top_defensive_leagues = async function (req, res) {
   connection.query(
     `SELECT l.leagueID AS leagueID,
             l.name AS league_name,
-            AVG(g.awayGoals) AS avg_goals_conceded,
-            AVG(ts.shots) AS avg_shots_faced,
-            AVG(ts.ppda) AS avg_ppda
+            ROUND(AVG(g.awayGoals), 2) AS avg_goals_conceded,
+            ROUND(AVG(ts.shots), 2) AS avg_shots_faced,
+            ROUND(AVG(ts.ppda), 2) AS avg_ppda
     FROM teamstats ts
         JOIN games g ON ts.gameID = g.gameID
         JOIN leagues l ON g.leagueID = l.leagueID
     WHERE ts.season BETWEEN ${startSeason} AND ${endSeason}
     GROUP BY l.name
-    ORDER BY avg_ppda,
-            avg_goals_conceded,
-            avg_shots_faced DESC
+    ORDER BY league_name
     `, (err, data) => {
     if (err) {
       console.log(err);
