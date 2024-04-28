@@ -546,24 +546,36 @@ const efficiency = async function (req, res) {
   });
 }
 
-// Route 13: GET /roster
+// Route 13: GET /roster_test
 const roster_test = async function (req, res) {
   const teamName = req.query.teamName;
   const startSeason = req.query.startSeason ?? 2014;
   const endSeason = req.query.endSeason ?? 2020;
 
-  if (!teamName) {
-    return res.status(400).json({ error: 'teamName is required' });
+  let query;
+  let queryParams;
+
+  if (teamName) {
+    // If teamName is provided, filter by team and seasons
+    query = `
+      SELECT season, roster
+      FROM team_roster
+      WHERE team = ? AND season BETWEEN ? AND ?
+      ORDER BY season;
+    `;
+    queryParams = [teamName, parseInt(startSeason), parseInt(endSeason)];
+  } else {
+    // If no teamName, return all data within the specified seasons
+    query = `
+      SELECT season, roster
+      FROM team_roster
+      WHERE season BETWEEN ? AND ?
+      ORDER BY season;
+    `;
+    queryParams = [parseInt(startSeason), parseInt(endSeason)];
   }
 
-  const query = `
-    SELECT season, roster
-    FROM team_roster
-    WHERE team = ? AND season BETWEEN ? AND ?
-    ORDER BY season;
-  `;
-
-  connection.query(query, [teamName, parseInt(startSeason), parseInt(endSeason)], (err, data) => {
+  connection.query(query, queryParams, (err, data) => {
     if (err) {
       console.error(err);
       res.status(500).json({ error: 'Error executing query' });
@@ -572,6 +584,7 @@ const roster_test = async function (req, res) {
     }
   });
 };
+
 
 
 module.exports = {
