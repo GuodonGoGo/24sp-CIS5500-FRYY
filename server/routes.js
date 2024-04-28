@@ -50,7 +50,7 @@ const top_scorers = async function (req, res) {
       JOIN games g ON a.gameID = g.gameID
       JOIN leagues l ON g.leagueID = l.leagueID
       GROUP BY p.playerID, l.leagueID
-  ), ranked_scores AS (
+    ), ranked_scores AS (
       SELECT
           leagueID,
           league_name,
@@ -58,24 +58,22 @@ const top_scorers = async function (req, res) {
           total_goals,
           RANK() OVER (PARTITION BY leagueID ORDER BY total_goals DESC) AS player_rank
       FROM goal_scores
-  )
-  SELECT player_name
-  FROM ranked_scores
-  WHERE player_rank = 1; 
+    )
+    SELECT league_name, player_name, total_goals -- Select the desired columns
+    FROM ranked_scores
+    WHERE player_rank = 1; 
   `, (err, data) => {
     if (err) {
       console.log(err);
       res.json([]); // In case of an error, return an empty array
     } else {
-      // Extracting just the player names from the data array
-      const playerNames = data.map(item => item.player_name);
-      res.json(playerNames); // Return the array of top scorers' names
+      res.json(data);
     }
   });
 }
 
 // Route 2: GET / most_influential_players
-// Description: Returns the data of the top 5 players who contributed to the most goals throughout seasons.
+// Description: Returns the data of the top 10 players who contributed to the most goals throughout seasons.
 const most_influential_players = async function (req, res) {
   connection.query(`
   WITH goals_from_shots AS (
@@ -98,21 +96,20 @@ const most_influential_players = async function (req, res) {
   JOIN teams t ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
   GROUP BY p.playerID, p.name
   ORDER BY total_goals DESC, total_assists DESC
-  LIMIT 5;
+  LIMIT 10;
 
   `, (err, data) => {
     if (err) {
       console.log(err);
       res.json([]); // In case of an error, return an empty array
     } else {
-      // Extracting just the player names from the data array
-      const playerNames = data.map(item => item.player_name);
-      res.json(playerNames); // Return the array of top scorers' names
+      res.json(data); 
     }
   });
 }
 
 // Route 3: GET /clutch_players
+// Description: Returns the names of the top 10 players who scored the most goals in the final 15 minutes of matches across all seasons, highlighting their clutch performance.
 const clutch_players = async function (req, res) {
   connection.query(`
     SELECT p.name, COUNT(*) AS late_goals
@@ -127,16 +124,14 @@ const clutch_players = async function (req, res) {
       console.log(err);
       res.json([]); // In case of an error, return an empty array
     } else {
-      console.log(data); // Log the data array
-      // Extracting just the player names from the data array
-      const playerNames = data.map(item => item.name);
-      res.json(playerNames); // Return the array of top scorers' names
+      res.json(data);
     }
   });
 }
 
 
 // Route 4: GET /player_performance_per_season
+// Description: Returns the data of player’s average performance in a specific season
 const player_performance_per_season = async function (req, res) {
   const name = req.query.name;
   // if season is not provided, return all seasons
@@ -144,68 +139,50 @@ const player_performance_per_season = async function (req, res) {
 
   if (!season) {
     connection.query(`
-    WITH gamesInfo AS(
-      SELECT P.playerID AS playerID, P.name AS name, G.season AS season, G.homeTeamID AS homeTeamID, G.awayTeamID AS awayTeamID, G.leagueID AS leagueID
+    WITH seasonStats AS (
+      SELECT 
+          P.name AS playerName,
+          G.season AS season,
+          TP.name AS team,
+          L.name AS league,
+          COUNT(*) AS games_played,
+          SUM(A.goals) AS num_goals,
+          SUM(A.shots) AS num_shots,
+          AVG(A.goals) AS avg_goals,
+          AVG(A.ownGoals) AS avg_own_goals,
+          AVG(A.shots) AS avg_shots,
+          AVG(A.assists) AS avg_assists,
+          AVG(A.keyPasses) AS avg_keyPasses,
+          AVG(A.yellowCard) AS avg_yellowCard,
+          AVG(A.redCard) AS avg_redCard,
+          AVG(A.time) AS avg_minutes
       FROM players P
-          JOIN appearances A ON P.playerID = A.playerID
-          JOIN games G ON A.gameID = G.gameID
-   ), teamsPlayed AS(
-      SELECT playerID, name, season, teamID, leagueID, COUNT(*) AS TOTAL_APPEARANCE
-      FROM (SELECT playerID, name, season, homeTeamID AS teamID, leagueID
-            FROM gamesInfo
-   
-            UNION ALL
-   
-            SELECT playerID, name, season, awayTeamID AS teamID, leagueID
-            FROM gamesInfo) TA
-      GROUP BY name, season, teamID
-      ORDER BY TOTAL_APPEARANCE DESC
-   ), teamsBelong AS (
-      SELECT TP.playerID, TP.name, season, TP.teamID, T.name AS team, L.name AS league, MAX(TOTAL_APPEARANCE) AS TOTAL_APPEARANCE
-      FROM teamsPlayed TP
-          JOIN teams T ON TP.teamID = T.teamID
-          JOIN leagues L ON TP.leagueID = L.leagueID
-      GROUP BY TP.name, season
-   ), seasonAvg AS (
-      SELECT P.name AS playerName,
-             G.season AS season,
-             SUM(A.goals) AS num_goals,
-             SUM(A.shots) AS num_shots,
-             SUM(A.assists) AS num_assists,
-             ROUND(AVG(A.goals), 2) AS avg_goal,
-             ROUND(AVG(A.ownGoals), 2) AS avg_own_goal,
-             ROUND(AVG(A.shots), 2) AS avg_shots,
-             ROUND(AVG(A.assists), 2) AS avg_assists,
-             ROUND(AVG(A.keyPasses), 2) AS avg_keyPasses,
-             ROUND(AVG(A.yellowCard), 2) AS avg_yellowCard,
-             ROUND(AVG(A.redCard), 2) AS avg_redCard,
-             ROUND(AVG(A.time), 2) AS avg_minutes
-      FROM appearances A
-          JOIN games G ON A.gameID = G.gameID
-          JOIN players P ON A.playerID = P.playerID
+      JOIN appearances A ON P.playerID = A.playerID
+      JOIN games G ON A.gameID = G.gameID
+      JOIN teams TP ON (G.homeTeamID = TP.teamID OR G.awayTeamID = TP.teamID)
+      JOIN leagues L ON G.leagueID = L.leagueID
       WHERE P.name = ?
-      GROUP BY P.name, G.season
-   )
-   SELECT TB.name AS name,
-         SA.season AS season,
-         TB.team AS team,
-         TB.league as league,
-         TB.TOTAL_APPEARANCE AS games_played,
-         SA.num_goals AS num_goals,
-         SA.num_shots AS num_shots,
-         ROUND(AVG(num_goals / num_shots), 2) AS goals_per_shot,
-         SA.avg_goal AS avg_goal_per_game,
-         SA.avg_own_goal AS avg_own_goal_per_game,
-         SA.avg_shots AS avg_shots_per_game,
-         SA.avg_assists AS avg_assists_per_game,
-         SA.avg_keyPasses AS avg_keyPasses_per_game,
-         SA.avg_yellowCard AS avg_yellowCard,
-         SA.avg_redCard AS avg_redCard,
-         SA.avg_minutes AS avg_minutes_per_game
-   FROM seasonAvg SA
-      JOIN teamsBelong TB ON SA.playerName = TB.name AND SA.season = TB.season
-   GROUP BY name, season, team
-   ORDER BY name, season, team;
+      GROUP BY P.name, G.season, L.name
+    )
+    SELECT 
+        playerName,
+        season,
+        league,
+        games_played,
+        num_goals,
+        num_shots,
+        ROUND(num_goals / NULLIF(num_shots, 0), 2) AS goals_per_shot,
+        avg_goals AS avg_goal_per_game,
+        avg_own_goals AS avg_own_goal_per_game,
+        avg_shots AS avg_shots_per_game,
+        avg_assists AS avg_assists_per_game,
+        avg_keyPasses AS avg_keyPasses_per_game,
+        avg_yellowCard AS avg_yellowCard,
+        avg_redCard AS avg_redCard,
+        avg_minutes AS avg_minutes_per_game
+    FROM seasonStats
+    ORDER BY playerName, season;
+  
       `, [name], (err, data) => {
       if (err) {
         console.log(err);
@@ -216,68 +193,50 @@ const player_performance_per_season = async function (req, res) {
     });
   } else {
     connection.query(`    
-      WITH gamesInfo AS(
-        SELECT P.playerID AS playerID, P.name AS name, G.season AS season, G.homeTeamID AS homeTeamID, G.awayTeamID AS awayTeamID, G.leagueID AS leagueID
-        FROM players P
-            JOIN appearances A ON P.playerID = A.playerID
-            JOIN games G ON A.gameID = G.gameID
-    ), teamsPlayed AS(
-        SELECT playerID, name, season, teamID, leagueID, COUNT(*) AS TOTAL_APPEARANCE
-        FROM (SELECT playerID, name, season, homeTeamID AS teamID, leagueID
-              FROM gamesInfo
-    
-              UNION ALL
-    
-              SELECT playerID, name, season, awayTeamID AS teamID, leagueID
-              FROM gamesInfo) TA
-        GROUP BY name, season, teamID
-        ORDER BY TOTAL_APPEARANCE DESC
-    ), teamsBelong AS (
-        SELECT TP.playerID, TP.name, season, TP.teamID, T.name AS team, L.name AS league, MAX(TOTAL_APPEARANCE) AS TOTAL_APPEARANCE
-        FROM teamsPlayed TP
-            JOIN teams T ON TP.teamID = T.teamID
-            JOIN leagues L ON TP.leagueID = L.leagueID
-        GROUP BY TP.name, season
-    ), seasonAvg AS (
-        SELECT P.name AS playerName,
-              G.season AS season,
-              SUM(A.goals) AS num_goals,
-              SUM(A.shots) AS num_shots,
-              SUM(A.assists) AS num_assists,
-              ROUND(AVG(A.goals), 2) AS avg_goal,
-              ROUND(AVG(A.ownGoals), 2) AS avg_own_goal,
-              ROUND(AVG(A.shots), 2) AS avg_shots,
-              ROUND(AVG(A.assists), 2) AS avg_assists,
-              ROUND(AVG(A.keyPasses), 2) AS avg_keyPasses,
-              ROUND(AVG(A.yellowCard), 2) AS avg_yellowCard,
-              ROUND(AVG(A.redCard), 2) AS avg_redCard,
-              ROUND(AVG(A.time), 2) AS avg_minutes
-        FROM appearances A
-            JOIN games G ON A.gameID = G.gameID
-            JOIN players P ON A.playerID = P.playerID
-        WHERE P.name = ? AND G.season = ?
-        GROUP BY P.name, G.season
+    WITH seasonStats AS (
+      SELECT 
+          P.name AS playerName,
+          G.season AS season,
+          TP.name AS team,
+          L.name AS league,
+          COUNT(*) AS games_played,
+          SUM(A.goals) AS num_goals,
+          SUM(A.shots) AS num_shots,
+          AVG(A.goals) AS avg_goals,
+          AVG(A.ownGoals) AS avg_own_goals,
+          AVG(A.shots) AS avg_shots,
+          AVG(A.assists) AS avg_assists,
+          AVG(A.keyPasses) AS avg_keyPasses,
+          AVG(A.yellowCard) AS avg_yellowCard,
+          AVG(A.redCard) AS avg_redCard,
+          AVG(A.time) AS avg_minutes
+      FROM players P
+      JOIN appearances A ON P.playerID = A.playerID
+      JOIN games G ON A.gameID = G.gameID
+      JOIN teams TP ON (G.homeTeamID = TP.teamID OR G.awayTeamID = TP.teamID)
+      JOIN leagues L ON G.leagueID = L.leagueID
+      WHERE P.name = ? AND G.season = ?
+      GROUP BY P.name, G.season, L.name
     )
-    SELECT TB.name AS name,
-          SA.season AS season,
-          TB.team AS team,
-          TB.league as league,
-          TB.TOTAL_APPEARANCE AS games_played,
-          SA.num_goals AS num_goals,
-          SA.num_shots AS num_shots,
-          ROUND(AVG(num_goals / num_shots), 2) AS goals_per_shot,
-          SA.avg_goal AS avg_goal_per_game,
-          SA.avg_own_goal AS avg_own_goal_per_game,
-          SA.avg_shots AS avg_shots_per_game,
-          SA.avg_assists AS avg_assists_per_game,
-          SA.avg_keyPasses AS avg_keyPasses_per_game,
-          SA.avg_yellowCard AS avg_yellowCard,
-          SA.avg_redCard AS avg_redCard,
-          SA.avg_minutes AS avg_minutes_per_game
-    FROM seasonAvg SA
-        JOIN teamsBelong TB ON SA.playerName = TB.name AND SA.season = TB.season
-    GROUP BY name, season, team
-    ORDER BY name, season, team;
+    SELECT 
+        playerName,
+        season,
+        league,
+        games_played,
+        num_goals,
+        num_shots,
+        ROUND(num_goals / NULLIF(num_shots, 0), 2) AS goals_per_shot,
+        avg_goals AS avg_goal_per_game,
+        avg_own_goals AS avg_own_goal_per_game,
+        avg_shots AS avg_shots_per_game,
+        avg_assists AS avg_assists_per_game,
+        avg_keyPasses AS avg_keyPasses_per_game,
+        avg_yellowCard AS avg_yellowCard,
+        avg_redCard AS avg_redCard,
+        avg_minutes AS avg_minutes_per_game
+    FROM seasonStats
+    ORDER BY playerName, season;
+  
       `, [name, season], (err, data) => {
       if (err) {
         console.log(err);
@@ -290,10 +249,11 @@ const player_performance_per_season = async function (req, res) {
 }
 
 // Route 5: GET /top_leagues
+// Description: Return the top-performing leagues overall, if the season is specified, return the top-performing leagues in that of the season.
 const top_leagues = async function (req, res) {
 
-  const startSeason = req.query.season ?? 2014;
-  const endSeason = req.query.season ?? 2020;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeasoneason ?? 2020;
 
   connection.query(
     `WITH game_stats AS (
@@ -304,7 +264,8 @@ const top_leagues = async function (req, res) {
       WHERE season BETWEEN ${startSeason} AND ${endSeason}
       GROUP BY leagueID
     )
-    SELECT l.name AS league_name,
+    SELECT l.leagueID AS leagueID,
+          l.name AS league_name,
           AVG(gs.total_goals) AS avg_total_goals,
           AVG(gs.goal_difference) AS avg_goal_difference
     FROM game_stats gs
@@ -324,13 +285,15 @@ const top_leagues = async function (req, res) {
 }
 
 // Route 6: GET /top_offensive_leagues
+// Description: Returns the top offensive leagues overall, if the season is specified, return the top offensive leagues in that of the season.
 const top_offensive_leagues = async function (req, res) {
 
-  const startSeason = req.query.season ?? 2014;
-  const endSeason = req.query.season ?? 2020;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeasoneason ?? 2020;
 
   connection.query(
-    `SELECT l.name AS league_name,
+    `SELECT l.leagueID AS leagueID,
+            l.name AS league_name,
             AVG(ts.goals) AS avg_goals,
             AVG(ts.xGoals) AS avg_expected_goals,
             AVG(ts.shots) AS avg_shots,
@@ -357,13 +320,15 @@ const top_offensive_leagues = async function (req, res) {
 }
 
 // Route 7: GET /top_defensive_leagues
+// Description: Returns the top defensive leagues overall, if the season is specified, return the top defensive leagues in that of the season.
 const top_defensive_leagues = async function (req, res) {
 
-  const startSeason = req.query.season ?? 2014;
-  const endSeason = req.query.season ?? 2020;
+  const startSeason = req.query.startSeason ?? 2014;
+  const endSeason = req.query.endSeasoneason ?? 2020;
 
   connection.query(
-    `SELECT l.name AS league_name,
+    `SELECT l.leagueID AS leagueID,
+            l.name AS league_name,
             AVG(g.awayGoals) AS avg_goals_conceded,
             AVG(ts.shots) AS avg_shots_faced,
             AVG(ts.ppda) AS avg_ppda
@@ -387,6 +352,7 @@ const top_defensive_leagues = async function (req, res) {
 }
 
 // Route 8: GET /team_roster
+// Description: returns the roster of each team, if season is specified, return the roster of each team in that of the season.
 const team_roster = async function (req, res) {
 
   const startSeason = req.query.season ?? 2014;
@@ -451,30 +417,46 @@ const team_roster = async function (req, res) {
 
 //Route 9: GET /total_goals
 // Total goals per season
-const total_goals = async function (req, res) {
-  const explicit = req.query.explicit === 'true' ? 1 : 0;
+const total_goals = async function(req, res) {
+  // Assume 'title' comes from somewhere, maybe req.query.title or hardcoded as below
+  const title = req.query.title ?? '';
+  const goalsScoredLow = parseInt(req.query.goals_scored_low ?? 0);
+  const goalsScoredHigh = parseInt(req.query.goals_scored_high ?? 100);
+  const goalsConcededLow = parseInt(req.query.goals_conceded_low ?? 0);
+  const goalsConcededHigh = parseInt(req.query.goals_conceded_high ?? 100);
 
   connection.query(`
     SELECT t.teamID, t.name AS team_name, g.season,
     SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.homeGoals ELSE g.awayGoals END) AS goals_scored,
     SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.awayGoals ELSE g.homeGoals END) AS goals_conceded
-    FROM  teams t
+    FROM teams t
     JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    WHERE t.name LIKE ?
     GROUP BY t.teamID, t.name, g.season
-  `, (err, data) => {
+    HAVING
+        SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.homeGoals ELSE g.awayGoals END) BETWEEN ? AND ?
+        AND
+        SUM(CASE WHEN g.homeTeamID = t.teamID THEN g.awayGoals ELSE g.homeGoals END) BETWEEN ? AND ?
+  `, ['%' + title + '%', goalsScoredLow, goalsScoredHigh, goalsConcededLow, goalsConcededHigh], (err, data) => {
     if (err || data.length === 0) {
       console.log(err);
-      res.json({});
+      res.json({error: "No data found or error occurred"});
     } else {
       res.json(data);
     }
   });
-}
+};
 
 // Route 10: GET /wld_ratios
 // Win/Loss/Draw Ratio Per Season
-const wld_ratios = async function (req, res) {
-  const explicit = req.query.explicit === 'true' ? 1 : 0;
+const wld_ratios = async function(req, res) {
+  const title = req.query.title ?? '';
+  const winsLow = parseInt(req.query.wins_low ?? 0);
+  const winsHigh = parseInt(req.query.wins_high ?? 100);
+  const lossesLow = parseInt(req.query.losses_low ?? 0);
+  const lossesHigh = parseInt(req.query.losses_high ?? 100);
+  const drawsLow = parseInt(req.query.draws_low ?? 0);
+  const drawsHigh = parseInt(req.query.draws_high ?? 100);
 
   connection.query(`
     SELECT t.teamID, t.name AS team_name, g.season, COUNT(*) AS total_games,
@@ -483,8 +465,15 @@ const wld_ratios = async function (req, res) {
     COUNT(CASE WHEN g.homeGoals = g.awayGoals THEN 1 END) AS draws
     FROM teams t
     JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    WHERE t.name LIKE ?
     GROUP BY t.teamID, t.name, g.season
-  `, (err, data) => {
+    HAVING
+        COUNT(CASE WHEN (g.homeTeamID = t.teamID AND g.homeGoals > g.awayGoals) OR (g.awayTeamID = t.teamID AND g.awayGoals > g.homeGoals) THEN 1 END) BETWEEN ? AND ?
+        AND
+        COUNT(CASE WHEN (g.homeTeamID = t.teamID AND g.homeGoals < g.awayGoals) OR (g.awayTeamID = t.teamID AND g.awayGoals < g.homeGoals) THEN 1 END) BETWEEN ? AND ?
+        AND
+        COUNT(CASE WHEN g.homeGoals = g.awayGoals THEN 1 END) BETWEEN ? AND ?
+  `, ['%' + title + '%', winsLow, winsHigh, lossesLow, lossesHigh, drawsLow, drawsHigh], (err, data) => {
     if (err || data.length === 0) {
       console.log(err);
       res.json({});
@@ -524,8 +513,12 @@ const season_performance = async function (req, res) {
 
 // Route 12: GET /efficiency
 // Efficiency (Goals per Shot, Goals per Game)
-const efficiency = async function (req, res) {
-  const explicit = req.query.explicit === 'true' ? 1 : 0;
+const efficiency = async function(req, res) {
+  const title = req.query.title ?? '';
+  const goals_per_shotLow = parseInt(req.query.goals_per_shot_low ?? 2);
+  const goals_per_shotHigh = parseInt(req.query.goals_per_shot_high ?? 4);
+  const goals_per_gameLow = parseInt(req.query.goals_per_game_low ?? 2);
+  const goals_per_gameHigh = parseInt(req.query.goals_per_game_high ?? 4);
 
   connection.query(`
     SELECT t.teamID, t.name AS team_name, g.season,
@@ -533,10 +526,15 @@ const efficiency = async function (req, res) {
     (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(SUM(a.shots), 0)) AS goals_per_shot,
     (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(COUNT(g.gameID), 0)) AS goals_per_game
     FROM teams t
-    RIGHT OUTER JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
-    RIGHT OUTER JOIN appearances a ON g.gameID = a.gameID AND (a.playerID IN (SELECT playerID FROM players WHERE homeTeamID = t.teamID OR awayTeamID = t.teamID))
+    JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    JOIN appearances a ON g.gameID = a.gameID AND (a.playerID IN (SELECT playerID FROM players WHERE homeTeamID = t.teamID OR awayTeamID = t.teamID))
+    WHERE t.name LIKE ?
     GROUP BY t.teamID, t.name, g.season
-  `, (err, data) => {
+    HAVING
+        (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(SUM(a.shots), 0)) BETWEEN ? AND ?
+        AND
+        (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(COUNT(g.gameID), 0)) BETWEEN ? AND ?
+  `, ['%' + title + '%', goals_per_shotLow, goals_per_shotHigh, goals_per_gameLow, goals_per_gameHigh], (err, data) => {
     if (err || data.length === 0) {
       console.log(err);
       res.json({});

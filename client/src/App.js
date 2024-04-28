@@ -8,13 +8,26 @@ import HomePage from './pages/HomePage';
 import AlbumsPage from './pages/AlbumsPage';
 import SongsPage from './pages/SongsPage';
 import AlbumInfoPage from './pages/AlbumInfoPage'
+import LeaguesPage from './pages/LeaguesPage'
 
 // createTheme enables you to customize the look and feel of your app past the default
 // in this case, we only change the color scheme
 export const theme = createTheme({
   palette: {
-    primary: indigo,
-    secondary: amber,
+    mode: 'dark',  // Optional: Consider a dark mode base for extra elegance
+    primary: {
+      main: '#ffffff', 
+    },
+    secondary: {
+      main: '#ff0000',
+    },
+    text: {
+      primary: '#eeeeee',
+      secondary: '#999999',
+    },
+  },
+  typography: {
+    fontFamily: ['Roboto', 'sans-serif'].join(','),
   },
 });
 
@@ -33,6 +46,7 @@ export default function App() {
           <Route path="/albums" element={<AlbumsPage />} />
           <Route path="/albums/:album_id" element={<AlbumInfoPage />} />
           <Route path="/songs" element={<SongsPage />} />
+          <Route path="/leagues" element={<LeaguesPage />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

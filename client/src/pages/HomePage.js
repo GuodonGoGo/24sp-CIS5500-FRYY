@@ -1,17 +1,69 @@
 import { useEffect, useState } from 'react';
-import { Container, Divider, Link } from '@mui/material';
-import { NavLink } from 'react-router-dom';
+import { CircularProgress, Container, Divider, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper, Skeleton, List, ListItem, ListItemText } from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import Modal from '@mui/material/Modal';
+import '../styles.css';
 
 import LazyTable from '../components/LazyTable';
 import SongCard from '../components/SongCard';
+
 const config = require('../config.json');
 
 export default function HomePage() {
   // We use the setState hook to persist information across renders (such as the result of our API calls)
-  const [songOfTheDay, setSongOfTheDay] = useState({});
-  // TODO (TASK 13): add a state variable to store the app author (default to '')
+  const [topScorers, setTopScorers] = useState([]);
+  const [influentialPlayers, setInfluentialPlayers] = useState([]);
+  const [clutchPlayers, setClutchPlayers] = useState([]);
 
-  const [selectedSongId, setSelectedSongId] = useState(null);
+  // Use the useState hook to store the loading state of our data
+  const [isLoadingTopScorers, setIsLoadingTopScorers] = useState(false); 
+  const [isLoadingInfluentialPlayers, setIsLoadingInfluentialPlayers] = useState(false); 
+  const [isLoadingClutchPlayers, setIsLoadingClutchPlayers] = useState(false); 
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const isLoading = isLoadingTopScorers || isLoadingInfluentialPlayers || isLoadingClutchPlayers;
+
+  // For the jump out modal
+  const [playerStats, setPlayerStats] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Define the theme for the tables
+  const theme = createTheme({
+    palette: {
+      mode: 'dark',
+      background: {
+        default: 'rgba(0, 0, 0, 0.6)', // Adjust transparency as needed
+      },
+    },
+    components: {
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: 'transparent',
+          },
+        },
+      },
+      MuiTableContainer: {
+        styleOverrides: {
+          root: {
+            boxShadow: 'none',
+          },
+        },
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          head: {
+            fontWeight: 'bold',
+            fontFamily: 'Roboto',
+            fontSize: '14px',
+            color: 'white',
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+            textTransform: 'uppercase',
+            padding: '10px',
+          },
+        },
+      },
+    },
+  });
 
   // The useEffect hook by default runs the provided callback after every render
   // The second (optional) argument, [], is the dependency array which signals
@@ -19,57 +71,319 @@ export default function HomePage() {
   // changes from the previous render. In this case, an empty array means the callback
   // will only run on the very first render.
   useEffect(() => {
-    // Fetch request to get the song of the day. Fetch runs asynchronously.
-    // The .then() method is called when the fetch request is complete
-    // and proceeds to convert the result to a JSON which is finally placed in state.
-    fetch(`http://${config.server_host}:${config.server_port}/random`)
-      .then(res => res.json())
-      .then(resJson => setSongOfTheDay(resJson));
-
-    // TODO (TASK 14): add a fetch call to get the app author (name not pennkey) and store the name field in the state variable
+    const fetchTopScorers = async () => {
+      try {
+        setIsLoadingTopScorers(true);
+        const startTime = Date.now();
+        const response = await fetch(`http://${config.server_host}:${config.server_port}/top_scorers`);
+        const data = await response.json();
+        const endTime = Date.now();
+        const elapsedTime = endTime - startTime;
+        const delay = Math.max(0, 3000 - elapsedTime); // Minimum delay of 3 seconds
+        await new Promise(resolve => setTimeout(resolve, delay));
+        setTopScorers(data);
+        setIsLoadingTopScorers(false);
+      } catch (error) {
+        console.error("Error fetching top scorers:", error);
+        setIsLoadingTopScorers(false);
+      }
+    };
+  
+    const fetchInfluentialPlayers = async () => {
+      try {
+        setIsLoadingInfluentialPlayers(true);
+        const startTime = Date.now();
+        const response = await fetch(`http://${config.server_host}:${config.server_port}/most_influential_players`);
+        const data = await response.json();
+        const endTime = Date.now();
+        const elapsedTime = endTime - startTime;
+        const delay = Math.max(0, 3000 - elapsedTime); // Minimum delay of 3 seconds
+        await new Promise(resolve => setTimeout(resolve, delay));
+        setInfluentialPlayers(data);
+        setIsLoadingInfluentialPlayers(false);
+      } catch (error) {
+        console.error("Error fetching influential players:", error);
+        setIsLoadingInfluentialPlayers(false);
+      }
+    };
+  
+    const fetchClutchPlayers = async () => {
+      try {
+        setIsLoadingClutchPlayers(true);
+        const startTime = Date.now();
+        const response = await fetch(`http://${config.server_host}:${config.server_port}/clutch_players`);
+        const data = await response.json();
+        const endTime = Date.now();
+        const elapsedTime = endTime - startTime;
+        const delay = Math.max(0, 3000 - elapsedTime); // Minimum delay of 3 seconds
+        await new Promise(resolve => setTimeout(resolve, delay));
+        setClutchPlayers(data);
+        setIsLoadingClutchPlayers(false);
+      } catch (error) {
+        console.error("Error fetching clutch players:", error);
+        setIsLoadingClutchPlayers(false);
+      }
+    };
+  
+    // Schedule the fetch functions based on their expected execution time
+    const scheduleFetch = async () => {
+      // Fetch data for all three sets
+      const fetchPromises = [fetchTopScorers(), fetchInfluentialPlayers(), fetchClutchPlayers()];
+  
+      // Wait for all promises to resolve, then update state
+      await Promise.all(fetchPromises);
+    };
+  
+    scheduleFetch();
   }, []);
+  
+  
 
-  // Here, we define the columns of the "Top Songs" table. The songColumns variable is an array (in order)
-  // of objects with each object representing a column. Each object has a "field" property representing
-  // what data field to display from the raw data, "headerName" property representing the column label,
-  // and an optional renderCell property which given a row returns a custom JSX element to display in the cell.
-  const songColumns = [
-    {
-      field: 'title',
-      headerName: 'Song Title',
-      renderCell: (row) => <Link onClick={() => setSelectedSongId(row.song_id)}>{row.title}</Link> // A Link component is used just for formatting purposes
-    },
-    {
-      field: 'album',
-      headerName: 'Album Title',
-      renderCell: (row) => <NavLink to={`/albums/${row.album_id}`}>{row.album}</NavLink> // A NavLink component is used to create a link to the album page
-    },
-    {
-      field: 'plays',
-      headerName: 'Plays'
-    },
+  // Define the columns for the top scorers list
+  const topScorersColumns = [
+    { field: 'player_name', headerName: 'Player', width: 180 }, 
+    { field: 'league_name', headerName: 'League', width: 150 },
+    { field: 'total_goals', headerName: 'Total Goals', width: 120, align: 'right' },
   ];
 
-  // TODO (TASK 15): define the columns for the top albums (schema is Album Title, Plays), where Album Title is a link to the album page
-  // Hint: this should be very similar to songColumns defined above, but has 2 columns instead of 3
-  // Hint: recall the schema for an album is different from that of a song (see the API docs for /top_albums). How does that impact the "field" parameter and the "renderCell" function for the album title column?
-  const albumColumns = [
+  // Define the columns for the most influential scorers table
+  const influentialPlayersColumns = [
+    { field: 'player_name', headerName: 'Player', width: 150 },
+    { field: 'appearances', headerName: 'Appearances', width: 100, align: 'right' },
+    { field: 'total_goals', headerName: 'Goals', width: 80, align: 'right' },
+    { field: 'total_assists', headerName: 'Assists', width: 80, align: 'right' },
+    { field: 'goals_from_shots', headerName: 'Goals from Shots', width: 150, align: 'right' },
+  ];
 
-  ]
+  // Define the columns for the most influential players table
+  const clutchPlayersColumns = [
+    { field: 'name', headerName: 'Player', width: 150 }, // Assuming you're using 'name' in your data
+    { field: 'late_goals', headerName: 'Late Goals', width: 100, align: 'right' }, 
+  ];
+
+  const fetchPlayerStats = async (playerName, season) => {
+    try {
+      setPlayerStats(null);
+      setIsLoadingStats(true);
+      setIsModalOpen(true); 
+      const response = await fetch(`http://${config.server_host}:${config.server_port}/player_performance_per_season?name=${playerName}`);
+      const data = await response.json();
+      setPlayerStats(data);
+      
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const modalStyles = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    bgcolor: 'background.paper',  // Match MUI theme
+    boxShadow: 24,
+    padding: 4, 
+    // ... more styles as needed 
+  };
 
   return (
     <Container>
-      {/* SongCard is a custom component that we made. selectedSongId && <SongCard .../> makes use of short-circuit logic to only render the SongCard if a non-null song is selected */}
-      {selectedSongId && <SongCard songId={selectedSongId} handleClose={() => setSelectedSongId(null)} />}
-      <h2>Check out your song of the day:&nbsp;
-        <Link onClick={() => setSelectedSongId(songOfTheDay.song_id)}>{songOfTheDay.title}</Link>
-      </h2>
+      {isLoading && (
+        <div className="loading-overlay"> 
+          <CircularProgress size={80} /> 
+        </div>
+      )}
+
+      <h2>Top Scorers Across Leagues</h2>
+      <ThemeProvider theme={theme}>
+        <TableContainer component={Paper}>
+          <Table size="small" aria-label="top scorers table">
+            <TableHead>
+              <TableRow>
+                {topScorersColumns.map((column) => (
+                  <TableCell key={column.field} align={column.align}>
+                    {column.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {isLoadingTopScorers ? ( 
+                Array.from(new Array(5)).map((_, index) => ( 
+                  <TableRow key={index}> 
+                    {topScorersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        <Skeleton variant="text" width={column.width} /> 
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : ( 
+                topScorers.map((player) => ( 
+                  <TableRow key={player.league_name + player.player_name}
+                    onClick={() => fetchPlayerStats(player.player_name)} 
+                    sx={{ '&:hover': { cursor: 'pointer', backgroundColor: 'grey' }}}
+                  > 
+                    {topScorersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        {player[column.field]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))         
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </ThemeProvider>
+
+
       <Divider />
-      <h2>Top Songs</h2>
-      <LazyTable route={`http://${config.server_host}:${config.server_port}/top_songs`} columns={songColumns} />
+      <h2>Top 10 Most Influential Players</h2>
+      <ThemeProvider theme={theme}>
+        <TableContainer component={Paper}>
+          <Table size="small" aria-label="influential players table"> 
+            <TableHead>
+              <TableRow>
+                {influentialPlayersColumns.map((column) => (
+                  <TableCell key={column.field} align={column.align}>
+                    {column.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {isLoadingInfluentialPlayers ? ( // Conditional rendering for loading state
+                Array.from(new Array(5)).map((_, index) => ( 
+                  <TableRow key={index}> 
+                    {influentialPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        <Skeleton variant="text" width={column.width} /> 
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : ( 
+                influentialPlayers.map((player) => (
+                  <TableRow key={player.player_id}
+                    onClick={() => fetchPlayerStats(player.player_name)} 
+                    sx={{ '&:hover': { cursor: 'pointer', backgroundColor: 'grey' }}}
+                  >
+                    {influentialPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        {player[column.field]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+      </TableBody>
+          </Table>
+        </TableContainer>
+      </ThemeProvider>
+      
       <Divider />
-      {/* TODO (TASK 16): add a h2 heading, LazyTable, and divider for top albums. Set the LazyTable's props for defaultPageSize to 5 and rowsPerPageOptions to [5, 10] */}
-      {/* TODO (TASK 17): add a paragraph (<p></p>) that displays “Created by [name]” using the name state stored from TASK 13/TASK 14 */}
+      <h2>Top 10 Clutch Players</h2>
+      <ThemeProvider theme={theme}> 
+        <TableContainer component={Paper}>
+          <Table size="small" aria-label="clutch players table"> 
+            <TableHead>
+              <TableRow>
+                {clutchPlayersColumns.map((column) => (
+                  <TableCell key={column.field} align={column.align}>
+                    {column.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {isLoadingClutchPlayers ? ( 
+                Array.from(new Array(5)).map((_, index) => ( 
+                  <TableRow key={index}> 
+                    {clutchPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        <Skeleton variant="text" width={column.width} /> 
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                clutchPlayers.map((player) => (
+                  <TableRow key={player.player_id}
+                    onClick={() => fetchPlayerStats(player.name)} 
+                    sx={{ '&:hover': { cursor: 'pointer', backgroundColor: 'grey' }}}
+                  > 
+                    {clutchPlayersColumns.map((column) => (
+                      <TableCell key={column.field} align={column.align}>
+                        {player[column.field]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </ThemeProvider>
+        
+      <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <div style={modalStyles}>
+          <h2 style={{ backgroundColor: 'black', padding: '10px' }}>
+            Player Statistics: {playerStats ? playerStats[0].playerName : ''}
+          </h2>
+          {isLoadingStats ? (
+            <div className="loading-overlay"> 
+              <CircularProgress size={80} /> 
+            </div>
+          ) : (
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}> {/* Scrollable container */}
+              <TableContainer component={Paper} sx={{ maxWidth: 800 }}> {/* Adjust maxWidth if needed */}
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Season</TableCell>
+                      <TableCell align="right">League</TableCell>
+                      <TableCell align="right">Games Played</TableCell>
+                      <TableCell align="right">Goals</TableCell>
+                      <TableCell align="right">Shots</TableCell>
+                      <TableCell align="right">Goals/Shot</TableCell>
+                      <TableCell align="right">Avg Goals/Game</TableCell>
+                      <TableCell align="right">Avg Shots/Game</TableCell>
+                      <TableCell align="right">Avg Assists/Game</TableCell>
+                      <TableCell align="right">Avg Key Passes/Game</TableCell>
+                      <TableCell align="right">Avg Yellow Card/Game</TableCell>
+                      <TableCell align="right">Avg Red Card/Game</TableCell>
+                      <TableCell align="right">Avg Minutes/Game</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {playerStats && playerStats.map((row) => (
+                      <TableRow key={row.season}>
+                        <TableCell>{row.season}</TableCell>
+                        <TableCell align="right">{row.league}</TableCell>
+                        <TableCell align="right">{row.games_played}</TableCell>
+                        <TableCell align="right">{row.num_goals}</TableCell>
+                        <TableCell align="right">{row.num_shots}</TableCell>
+                        <TableCell align="right">{row.goals_per_shot}</TableCell>
+                        <TableCell align="right">{row.avg_goal_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_shots_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_assists_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_keyPasses_per_game}</TableCell>
+                        <TableCell align="right">{row.avg_yellowCard}</TableCell>
+                        <TableCell align="right">{row.avg_redCard}</TableCell>
+                        <TableCell align="right">{row.avg_minutes_per_game}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </div>
+          )}
+        </div>
+      </Modal>
+
     </Container>
   );
 };
