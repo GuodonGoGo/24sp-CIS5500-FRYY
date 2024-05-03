@@ -44,7 +44,7 @@ export function PlayersPage() {
     fetch(`http://${config.server_host}:${config.server_port}/roster_test`)
       .then(res => res.json())
       .then(resJson => {
-        const teamsWithId = resJson.map((team) => ({ id: `${team.team_name}_${team.season}`, ...team }));
+        const teamsWithId = resJson.map((team) => ({ id: `${team.team}_${team.season}`, ...team }));
         setData(teamsWithId);
     setIsLoadingStats(false);
       });
@@ -57,7 +57,7 @@ export function PlayersPage() {
       .then(resJson => {
         // DataGrid expects an array of objects with a unique id.
         // To accomplish this, we use a map with spread syntax (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
-        const teamsWithId = resJson.map((team) => ({ id: `${team.team_name}_${team.season}`, ...team }));
+        const teamsWithId = resJson.map((team) => ({ id: `${team.team}_${team.season}`, ...team }));
         setData(teamsWithId);
       });
   }
