@@ -465,7 +465,7 @@ export function SeasonPage() {
           <TextField label='Title' value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%" }}/>
         </Grid>
         <Grid item xs={6}>
-          <p>Losses</p>
+          <p>Goals per Shot</p>
           <Slider
             value={goals_per_shot}
             min={2}
@@ -477,7 +477,7 @@ export function SeasonPage() {
           />
         </Grid>
         <Grid item xs={6}>
-          <p>Draws</p>
+          <p>Goals per Page</p>
           <Slider
             value={goals_per_game}
             min={2}
