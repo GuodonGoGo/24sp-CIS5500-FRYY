@@ -76,12 +76,6 @@ const top_scorers = async function (req, res) {
 // Description: Returns the data of the top 10 players who contributed to the most goals throughout seasons.
 const most_influential_players = async function (req, res) {
   connection.query(`
-  WITH goals_from_shots AS (
-    SELECT shooterID,
-           SUM(CASE WHEN shotResult = 'Goal' THEN 1 ELSE 0 END) AS goals_from_shots
-    FROM shots
-    GROUP BY shooterID
-  )
   SELECT
     p.playerID,
     p.name AS player_name,
@@ -92,7 +86,7 @@ const most_influential_players = async function (req, res) {
   FROM players p
   JOIN appearances a ON p.playerID = a.playerID
   JOIN games g ON a.gameID = g.gameID
-  JOIN goals_from_shots gfs ON p.playerID = gfs.shooterID
+  JOIN goals_from_shots_summary gfs ON p.playerID = gfs.shooterID
   JOIN teams t ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
   GROUP BY p.playerID, p.name
   ORDER BY total_goals DESC, total_assists DESC
