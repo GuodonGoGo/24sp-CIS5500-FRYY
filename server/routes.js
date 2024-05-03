@@ -545,7 +545,7 @@ const roster_test = async function (req, res) {
   if (teamName) {
     // If teamName is provided, filter by team and seasons
     query = `
-      SELECT season, team, league, GROUP_CONCAT(name separator ', ') AS roster
+      SELECT season, team, league, GROUP_CONCAT(DISTINCT name ORDER BY name REGEXP '^[A-Za-z0-9 ]*$' DESC, name ASC SEPARATOR ', ') AS roster
       FROM teamsBelong
       WHERE team = ? AND season BETWEEN ? AND ?
       GROUP BY league, team, season
@@ -555,7 +555,7 @@ const roster_test = async function (req, res) {
   } else {
     // If no teamName, return all data within the specified seasons
     query = `
-      SELECT season, team, league, GROUP_CONCAT(name separator ', ') AS roster
+      SELECT season, team, league, GROUP_CONCAT(DISTINCT name ORDER BY name REGEXP '^[A-Za-z0-9 ]*$' DESC, name ASC SEPARATOR ', ') AS roster
       FROM teamsBelong
       WHERE season BETWEEN ? AND ?
       GROUP BY league, team, season
