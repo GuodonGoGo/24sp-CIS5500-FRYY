@@ -516,13 +516,19 @@ const efficiency = async function(req, res) {
   const goals_per_gameHigh = parseInt(req.query.goals_per_game_high ?? 4);
 
   connection.query(`
-    SELECT *
-    FROM efficiency e
-    WHERE e.team_name LIKE ?
+    SELECT t.teamID, t.name AS team_name, g.season,
+    SUM(g.homeGoals + g.awayGoals) AS total_goals, SUM(a.shots) AS total_shots,
+    (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(SUM(a.shots), 0)) AS goals_per_shot,
+    (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(COUNT(g.gameID), 0)) AS goals_per_game
+    FROM teams t
+    JOIN games g ON t.teamID = g.homeTeamID OR t.teamID = g.awayTeamID
+    JOIN appearances a ON g.gameID = a.gameID AND (a.playerID IN (SELECT playerID FROM players WHERE homeTeamID = t.teamID OR awayTeamID = t.teamID))
+    WHERE t.name LIKE ?
+    GROUP BY t.teamID, t.name, g.season
     HAVING
-        e.goals_per_shot BETWEEN ? AND ?
+        (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(SUM(a.shots), 0)) BETWEEN ? AND ?
         AND
-        e.goals_per_game BETWEEN ? AND ?
+        (SUM(g.homeGoals + g.awayGoals) * 1.0 / NULLIF(COUNT(g.gameID), 0)) BETWEEN ? AND ?
   `, ['%' + title + '%', goals_per_shotLow, goals_per_shotHigh, goals_per_gameLow, goals_per_gameHigh], (err, data) => {
     if (err || data.length === 0) {
       console.log(err);
@@ -545,19 +551,21 @@ const roster_test = async function (req, res) {
   if (teamName) {
     // If teamName is provided, filter by team and seasons
     query = `
-      SELECT team AS team_name, season, league, roster
-      FROM team_roster
+      SELECT season, team, league, GROUP_CONCAT(name separator ', ') AS roster
+      FROM teamsBelong
       WHERE team = ? AND season BETWEEN ? AND ?
-      ORDER BY season;
+      GROUP BY league, team, season
+      ORDER BY season, league, team;
     `;
     queryParams = [teamName, parseInt(startSeason), parseInt(endSeason)];
   } else {
     // If no teamName, return all data within the specified seasons
     query = `
-      SELECT team AS team_name, season, league, roster
-      FROM team_roster
+      SELECT season, team, league, GROUP_CONCAT(name separator ', ') AS roster
+      FROM teamsBelong
       WHERE season BETWEEN ? AND ?
-      ORDER BY season;
+      GROUP BY league, team, season
+      ORDER BY season, league, team;
     `;
     queryParams = [parseInt(startSeason), parseInt(endSeason)];
   }
