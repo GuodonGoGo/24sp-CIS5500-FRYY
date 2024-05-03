@@ -44,7 +44,7 @@ export function PlayersPage() {
     fetch(`http://${config.server_host}:${config.server_port}/roster_test`)
       .then(res => res.json())
       .then(resJson => {
-        const teamsWithId = resJson.map((team) => ({ id: `${team.team_name}_${team.season}`, ...team }));
+        const teamsWithId = resJson.map((team) => ({ id: `${team.team}_${team.season}`, ...team }));
         setData(teamsWithId);
     setIsLoadingStats(false);
       });
@@ -57,7 +57,7 @@ export function PlayersPage() {
       .then(resJson => {
         // DataGrid expects an array of objects with a unique id.
         // To accomplish this, we use a map with spread syntax (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax)
-        const teamsWithId = resJson.map((team) => ({ id: `${team.team_name}_${team.season}`, ...team }));
+        const teamsWithId = resJson.map((team) => ({ id: `${team.team}_${team.season}`, ...team }));
         setData(teamsWithId);
       });
   }
@@ -67,7 +67,7 @@ export function PlayersPage() {
   // LazyTable component. The big difference is we provide all data to the DataGrid component
   // instead of loading only the data we need (which is necessary in order to be able to sort by column)
   const columns = [
-    { field: 'team_name', headerName: 'Title', width: 160, renderCell: (params) => (
+    { field: 'team', headerName: 'Title', width: 160, renderCell: (params) => (
         <Link onClick={() => setSelectedTeam(params.row.team_name)}>{params.value}</Link>
     ) },
     { field: 'season', headerName: 'Season', width: 160 },
@@ -120,7 +120,7 @@ export function PlayersPage() {
       <DataGrid
                 rows={data}
                 columns={[
-                    { field: 'team_name', headerName: 'Title', width: 160 },
+                    { field: 'team', headerName: 'Title', width: 160 },
                     { field: 'season', headerName: 'Season', width: 160 },
                     { field: 'league', headerName: 'League', width: 160 },
                     {
