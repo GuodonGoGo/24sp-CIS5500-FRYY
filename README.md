@@ -40,3 +40,39 @@ Detailed statistics for each team's games in one of Europe's Top 5 soccer league
 - **'server/':** Contains all backend-related code, written in Node.js. This includes API's controllers, models (to interact with the MySQL database), and routes. Business logic is placed in services, and config holds configuration files like database connection settings.
 - **'client/':** This directory holds the React frontend application, including the components, styles, and app entry points. It's structured to separate UI components from pages and global styles, promoting reusability and modularity.
 - **'data/':** Holds the raw database data files.
+
+## How to run the app locally
+
+**Prerequisites**
+- Node.js (https://nodejs.org/)
+- MySQL (https://www.mysql.com/)
+- A suitable code editor (VS Code, Atom, etc.)
+
+
+**Setup**
+- Clone the repository:
+  ```
+  git clone https://github.com/GuodonGoGo/24sp-CIS5500-FRYY.git
+  ```
+  
+- Install dependencies:
+  ```
+  cd server
+  npm install 
+  
+  cd ../client
+  npm install 
+  ```
+- Start the servers:
+  ```
+  # In one terminal:
+  cd server
+  npm start
+  
+  # In a separate terminal:
+  cd client
+  npm start 
+  ```
+- Accessing the Application
+  
+  The frontend will run on http://localhost:3000. Open this address in your web browser.
