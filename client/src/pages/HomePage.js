@@ -4,9 +4,6 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import Modal from '@mui/material/Modal';
 import '../styles.css';
 
-import LazyTable from '../components/LazyTable';
-import SongCard from '../components/SongCard';
-
 const config = require('../config.json');
 
 export default function HomePage() {

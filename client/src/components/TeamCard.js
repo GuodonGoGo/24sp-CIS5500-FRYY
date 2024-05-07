@@ -6,7 +6,7 @@ import { NavLink } from 'react-router-dom';
 import { formatDuration } from '../helpers/formatter';
 const config = require('../config.json');
 
-// SongCard is a modal (a common example of a modal is a dialog window).
+// Teamcard is a modal (a common example of a modal is a dialog window).
 // Typically, modals will conditionally appear (specified by the Modal's open property)
 // but in our implementation whether the Modal is open is handled by the parent component
 // (see HomePage.js for example), since it depends on the state (selectedSongId) of the parent

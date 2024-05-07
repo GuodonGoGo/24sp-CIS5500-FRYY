@@ -3,10 +3,10 @@ import { CircularProgress, Button, Checkbox, Container, FormControlLabel, Grid, 
 import { DataGrid } from '@mui/x-data-grid';
 import '../styles.css';
 
-import SongCard from '../components/SongCard';
+import TeamCard from '../components/TeamCard';
 import { formatDuration } from '../helpers/formatter';
 const config = require('../config.json');
-//import LazyTable from '../components/LazyTable';
+
 
 export default function MainPage() {
     const [tabIndex, setTabIndex] = useState(0); // State to track the active tab index
@@ -106,7 +106,7 @@ export function PlayersPage() {
           <CircularProgress size={80} />
         </div>
       )}
-      {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
+      {selectedTeam && <TeamCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
       <h2>Search Teams</h2>
       <Grid container spacing={6}>
         <Grid item xs={12}>
@@ -212,7 +212,7 @@ export function SongsPage() {
           <CircularProgress size={80} />
         </div>
       )}
-      {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
+      {selectedTeam && <TeamCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
       <h2>Search Teams</h2>
       <Grid container spacing={6}>
         <Grid item xs={8}>
@@ -329,7 +329,7 @@ export function TeamsPage() {
           <CircularProgress size={80} />
         </div>
       )}
-      {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
+      {selectedTeam && <TeamCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
       <h2>Search Teams</h2>
       <Grid container spacing={6}>
         <Grid item xs={10}>
@@ -458,7 +458,7 @@ export function SeasonPage() {
           <CircularProgress size={80} />
         </div>
       )}
-      {selectedTeam && <SongCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
+      {selectedTeam && <TeamCard songId={selectedTeam} handleClose={() => setSelectedTeam(null)} />}
       <h2>Search Teams</h2>
       <Grid container spacing={6}>
         <Grid item xs={10}>
